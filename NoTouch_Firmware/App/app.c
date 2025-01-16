@@ -10,6 +10,9 @@
 
 void APP_init(){
     string str;
-    STRING_init(&str);
+    STRING_addCharString(&str, "abc/0");
     STRING_addInt(&str, 123);
+    STRING_addCharString(&str, ",456");
+    STRING_addChar(&str, 'T');
+    float num = STRING_stringToFloat(&str, ',');
 }
