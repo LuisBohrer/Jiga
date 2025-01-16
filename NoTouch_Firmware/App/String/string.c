@@ -28,22 +28,47 @@ void STRING_addChar(string *self, char character){
 
 void STRING_addInt(string *self, int32_t number){
     uint64_t i = pow(10, 10);
+    if(number < 0){
+        self->buffer[self->length++] = '-';
+        number*=-1;
+    }
 
     while(floor(number/i) == 0 && i > 1) i/=10;
 
     while(i >= 1){
-        uint32_t resto = number/i;
+        int32_t resto = number/i;
         self->buffer[self->length++] = resto%10 + '0';
         i/=10;
     }
 }
 
 void STRING_addFloat(string *self, float number, uint32_t decimalSpaces, char separator){
+    if(number < 0){
+        self->buffer[self->length++] = '-';
+        number*=-1;
+    }
     STRING_addInt(self, floor(number));
     STRING_addChar(self, separator);
     uint32_t decimals = round(number*pow(10, decimalSpaces));
     uint32_t denominator = floor(pow(10, decimalSpaces));
     STRING_addInt(self, decimals%denominator);
+}
+
+void STRING_addCharString(string *self, const char* const inputCharString){
+    for(uint32_t i = 0; inputCharString[i] != '\0'; i++){
+        STRING_addChar(self, inputCharString[i]);
+    }
+}
+
+void STRING_addString(string *self, string *inputString){
+    for(uint32_t i = 0; inputString->buffer[i] != '\0'; i++){
+        STRING_addChar(self, inputString->buffer[i]);
+    }
+}
+
+void STRING_copyString(string *copyFrom, string *copyTo){
+    STRING_clear(copyTo);
+    STRING_addString(copyTo, copyFrom);
 }
 
 void STRING_clear(string *self){
@@ -54,10 +79,8 @@ uint8_t STRING_isDigit(char inputChar){
     return inputChar >= '0' && inputChar <= '9';
 }
 
-void STRING_addCharString(string *self, const char* const inputCharString){
-    for(uint32_t i = 0; inputCharString[i] != '\0'; i++){
-        STRING_addChar(self, inputCharString[i]);
-    }
+uint8_t STRING_isPrintable(char inputChar){
+    return inputChar >= ' ' && inputChar <= '~';
 }
 
 void STRING_charStringToString(const char* const inputCharString, string *outputString){
@@ -71,17 +94,23 @@ void STRING_stringToCharString(string *inputString, char *outputCharString){
     }
 }
 
-uint32_t STRING_stringToInt(string *inputString){
+int32_t STRING_stringToInt(string *inputString){
     uint32_t i = 0;
-    uint32_t result = 0;
+    int32_t result = 0;
+    int8_t signal = 1;
     while(i < inputString->length && !STRING_isDigit(inputString->buffer[i])) i++;
+    if(i >= 1){
+        if(inputString->buffer[i - 1] == '-'){
+            signal = -1;
+        }
+    }
     while(i < inputString->length && STRING_isDigit(inputString->buffer[i])){
         result*=10;
         result += inputString->buffer[i] - '0';
         i++;
     }
 
-    return result;
+    return result*signal;
 }
 
 float STRING_stringToFloat(string *inputString, char separator){
@@ -89,7 +118,13 @@ float STRING_stringToFloat(string *inputString, char separator){
     uint8_t separatorReached = 0;
     float decimalSpaces = 1;
     float result = 0.0;
+    int8_t signal = 1;
     while(i < inputString->length && !STRING_isDigit(inputString->buffer[i])) i++;
+    if(i >= 1){
+        if(inputString->buffer[i - 1] == '-'){
+            signal = -1;
+        }
+    }
     while(i < inputString->length){
         uint8_t incomingChar = inputString->buffer[i];
         if(incomingChar == separator){
@@ -110,5 +145,5 @@ float STRING_stringToFloat(string *inputString, char separator){
         }
         i++;
     }
-    return result;
+    return result*signal;
 }

@@ -25,12 +25,14 @@ void STRING_addChar(string *self, char character);
 void STRING_addInt(string *self, int32_t number);
 void STRING_addFloat(string *self, float number, uint32_t decimalSpaces, char separator);
 void STRING_addCharString(string *self, const char* const inputCharString);
+void STRING_addString(string *self, string *inputString);
+void STRING_copyString(string *copyFrom, string *copyTo);
 void STRING_clear(string *self);
 uint8_t STRING_isDigit(char inputChar);
 uint8_t STRING_isPrintable(char inputChar);
 void STRING_charStringToString(const char* const inputCharString, string *outputString);
 void STRING_stringToCharString(string *inputString, char *outputCharString);
-uint32_t STRING_stringToInt(string *inputString);
+int32_t STRING_stringToInt(string *inputString);
 float STRING_stringToFloat(string *inputString, char separator);
 
 
