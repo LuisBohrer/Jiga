@@ -10,6 +10,7 @@
 #include "Nextion/nextion.h"
 #include "Nextion/nextionComponents.h"
 #include "adc.h"
+#include "usart.h"
 
 const float MIN_ADC_READ = 0;
 const float MAX_ADC_READ = 4095;
@@ -27,12 +28,28 @@ uint8_t newReads = 0;
 uint16_t adcVoltageReads[NUMBER_OF_CHANNELS] = {0};
 uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
 
+UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
+uint8_t displayLastChar;
+UART_HandleTypeDef *DEBUG_UART = &huart1;
+uint8_t debugLastChar;
+UART_HandleTypeDef *MODBUS_UART = &huart3;
+uint8_t modbusLastChar;
+
 void APP_init(){
     NEXTION_init();
-    HAL_StatusTypeDef adcStatus;
+    HAL_StatusTypeDef status;
     do{
-        adcStatus = HAL_ADC_Start_DMA(&hadc1, (uint32_t*) adcCurrentReads, NUMBER_OF_CHANNELS);
-    } while(adcStatus != HAL_OK);
+        status = HAL_ADC_Start_DMA(&hadc1, (uint32_t*) adcCurrentReads, NUMBER_OF_CHANNELS);
+    } while(status != HAL_OK);
+    do{
+        status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
+    } while(status != HAL_OK);
+    do{
+        status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
+    } while(status != HAL_OK);
+    do{
+        status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
+    } while(status != HAL_OK);
 }
 
 void APP_poll(){
@@ -78,4 +95,31 @@ float APP_map(float value, float fromMin, float fromMax, float toMin, float toMa
 
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
     newReads = 1;
+}
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
+    HAL_StatusTypeDef status;
+    if(huart == DISPLAY_UART){
+        // trata mensagem displayHAL_StatusTypeDef status;
+
+        do{
+            status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
+        } while(status != HAL_OK);
+    }
+
+    else if(huart == DEBUG_UART){
+        // trata mensagem coletora
+
+        do{
+            status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
+        } while(status != HAL_OK);
+    }
+
+    else if(huart == MODBUS_UART){
+        // trata mensagem modbus
+
+        do{
+            status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
+        } while(status != HAL_OK);
+    }
 }
