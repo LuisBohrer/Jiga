@@ -14,7 +14,7 @@ void STRING_init(string *self){
         self->buffer[i] = '\0';
 }
 
-char* STRING_getBuffer(string *self){
+uint8_t* STRING_getBuffer(string *self){
     return self->buffer;
 }
 

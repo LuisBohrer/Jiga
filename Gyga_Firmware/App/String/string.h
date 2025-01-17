@@ -14,12 +14,12 @@
 #define BUFFER_SIZE 100
 
 typedef struct string {
-        char buffer[BUFFER_SIZE];
+        uint8_t buffer[BUFFER_SIZE];
         uint16_t length;
 } string;
 
 void STRING_init(string *self);
-char* STRING_getBuffer(string *self);
+uint8_t* STRING_getBuffer(string *self);
 uint16_t STRING_getLength(string *self);
 void STRING_addChar(string *self, char character);
 void STRING_addInt(string *self, int32_t number);

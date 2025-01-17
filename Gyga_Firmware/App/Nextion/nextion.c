@@ -9,13 +9,15 @@
 #include "String/string.h"
 #include "Nextion/nextionComponents.h"
 #include <math.h>
+#include "usart.h"
 
 const string textSufix = {".txt", 4};
 const string valueSufix = {".val", 4};
 const string endPacket = {{0xff, 0xff, 0xff}, 3};
 
 void NEXTION_init(){
-
+    string msg;
+    STRING_copyString(&currentTxtBx[0], &msg);
 }
 
 void NEXTION_sendCharMessage(const char* const message){
@@ -27,7 +29,10 @@ void NEXTION_sendCharMessage(const char* const message){
 
 void NEXTION_sendStringMessage(string *message){
     STRING_addString(message, &endPacket);
-    // hal transmit com string_getbuffer
+    HAL_UART_Transmit(&hlpuart1,
+            STRING_getBuffer(message),
+            STRING_getLength(message),
+            DISPLAY_UART_DEFAULT_TIMEOUT);
 }
 
 void NEXTION_setComponentText(const string *component, const string *newText){
@@ -64,4 +69,11 @@ void NEXTION_setGlobalVariableValue(const string *variable, int32_t value){
     STRING_addChar(&nextionMessage, '=');
     STRING_addInt(&nextionMessage, value);
     NEXTION_sendStringMessage(&nextionMessage);
+}
+
+void NEXTION_updateReads(uint8_t readingCurrent, uint16_t newReads[10]){
+    const string *componentRead = readingCurrent ? currentTxtBx : voltageTxtBx;
+    for(uint8_t i = 0; i < 10; i++){
+        NEXTION_setComponentIntValue(&componentRead[i], newReads[i]);
+    }
 }
