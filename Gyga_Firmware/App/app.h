@@ -8,9 +8,12 @@
 #ifndef APP_H_
 #define APP_H_
 
+#include <stdint.h>
+
 #define NUMBER_OF_CHANNELS 10
 
 void APP_init(void);
 void APP_poll(void);
+float APP_map(float value, float fromMin, float fromMax, float toMin, float toMax);
 
 #endif /* APP_H_ */

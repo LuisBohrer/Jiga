@@ -72,8 +72,5 @@ void NEXTION_setGlobalVariableValue(const string *variable, int32_t value){
 }
 
 void NEXTION_updateReads(uint8_t readingCurrent, uint16_t newReads[10]){
-    const string *componentRead = readingCurrent ? currentTxtBx : voltageTxtBx;
-    for(uint8_t i = 0; i < 10; i++){
-        NEXTION_setComponentIntValue(&componentRead[i], newReads[i]);
-    }
+
 }

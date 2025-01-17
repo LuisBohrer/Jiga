@@ -19,6 +19,5 @@ void NEXTION_setComponentText(const string *component, const string *newText);
 void NEXTION_setComponentIntValue(const string *component, int32_t newValue);
 void NEXTION_setComponentFloatValue(const string *component, float newValue, uint32_t decimalSpaces);
 void NEXTION_setGlobalVariableValue(const string *variable, int32_t value);
-void NEXTION_updateReads(uint8_t readingCurrent, uint16_t newReads[10]);
 
 #endif /* NEXTION_NEXTION_H_ */
