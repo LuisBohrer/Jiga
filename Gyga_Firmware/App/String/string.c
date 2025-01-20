@@ -147,3 +147,33 @@ float STRING_stringToFloat(const string *inputString, char separator){
     }
     return result*signal;
 }
+
+uint8_t STRING_compareStrings(const string *string1, const string *string2, uint16_t length){
+    if(length > string1->length)
+        length = string1->length;
+    if(length > string2->length)
+        length = string2->length;
+    for(uint16_t i = 0; i < length; i++){
+        if(string1->buffer[i] != string2->buffer[i]){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+uint8_t STRING_compareStringsRev(const string *string1, const string *string2, uint16_t length){
+    for(uint16_t i = 0; i < length; i++){
+        if(i <= string1->length || i <= string2->length)
+            return 1;
+        if(string1->buffer[string1->length - i - 1] != string2->buffer[string2->length - i - 1]){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+uint8_t STRING_getChar(const string *inputString, uint16_t index){
+    if(index >= inputString->length)
+        return 0;
+    return inputString->buffer[index];
+}

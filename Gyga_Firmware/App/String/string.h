@@ -34,6 +34,8 @@ void STRING_charStringToString(const char* const inputCharString, string *output
 void STRING_stringToCharString(const string *inputString, char *outputCharString);
 int32_t STRING_stringToInt(const string *inputString);
 float STRING_stringToFloat(const string *inputString, char separator);
-
+uint8_t STRING_compareStrings(const string *string1, const string *string2, uint16_t length);
+uint8_t STRING_compareStringsRev(const string *string1, const string *string2, uint16_t length);
+uint8_t STRING_getChar(const string *inputString, uint16_t index);
 
 #endif /* STRING_STRING_H_ */

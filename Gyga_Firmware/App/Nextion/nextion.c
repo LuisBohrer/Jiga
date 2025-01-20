@@ -15,11 +15,6 @@ const string textSufix = {".txt", 4};
 const string valueSufix = {".val", 4};
 const string endPacket = {{0xff, 0xff, 0xff}, 3};
 
-void NEXTION_init(){
-    string msg;
-    STRING_copyString(&currentTxtBx[0], &msg);
-}
-
 void NEXTION_sendCharMessage(const char* const message){
     string messageString;
     STRING_charStringToString(message, &messageString);
@@ -68,4 +63,25 @@ void NEXTION_setGlobalVariableValue(const string *variable, int32_t value){
     STRING_addChar(&nextionMessage, '=');
     STRING_addInt(&nextionMessage, value);
     NEXTION_sendStringMessage(&nextionMessage);
+}
+
+
+displayResponses_t NEXTION_treatMessage(ringBuffer_t *buffer, string *message){
+    while(!RB_isEmpty(buffer)){
+        STRING_addChar(message, RB_getByte(buffer));
+    }
+
+    if(message->length <= 0){
+        return NO_MESSAGE;
+    }
+    if(!STRING_compareStringsRev(message, &endPacket, 3)){
+        return INCOMPLETE_MESSAGE;
+    }
+    if(STRING_getChar(message, 0) == 0x1A){
+        return ERROR_INVALID_VARIABLE;
+    }
+    if(STRING_getChar(message, 0) == 0x24){
+        return ERROR_BUFFER_OVERFLOW;
+    }
+    return VALID_MESSAGE;
 }

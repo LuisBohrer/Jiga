@@ -10,6 +10,7 @@
 #include "Nextion/nextion.h"
 #include "Nextion/nextionComponents.h"
 #include "Utils/utils.h"
+#include "RingBuffer/ringBuffer.h"
 #include "adc.h"
 #include "usart.h"
 #include "tim.h"
@@ -36,12 +37,16 @@ uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
 // Uart declarations and buffers // [Section]
 UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
 uint8_t displayLastChar;
+ringBuffer_t displayRb;
+string displayLastMessage;
 
 UART_HandleTypeDef *DEBUG_UART = &huart1;
 uint8_t debugLastChar;
+ringBuffer_t debugRb;
 
 UART_HandleTypeDef *MODBUS_UART = &huart3;
 uint8_t modbusLastChar;
+ringBuffer_t modbusRb;
 // Uart declarations and buffers //
 
 // Timer counters and periods // [Section]
@@ -59,7 +64,7 @@ static void APP_updateReads(void);
 // Application functions // [Section]
 uint8_t appStarted = 0;
 void APP_init(){
-    NEXTION_init();
+    STRING_init(&displayLastMessage);
     APP_startAdcReadDma(adcVoltageReads, READ_VOLTAGE);
     APP_initUarts();
     APP_initTimers();
@@ -72,6 +77,10 @@ void APP_poll(){
         return;
 
     APP_updateReads();
+    displayResponses_t aux = NEXTION_treatMessage(&displayRb, &displayLastMessage);
+    if(aux != NO_MESSAGE){
+        STRING_clear(&displayLastMessage);
+    }
 }
 
 static void APP_initUarts(){
@@ -79,12 +88,17 @@ static void APP_initUarts(){
     do{
         status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
     } while(status != HAL_OK);
+    RB_init(&displayRb);
+
     do{
         status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
     } while(status != HAL_OK);
+    RB_init(&debugRb);
+
     do{
         status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
     } while(status != HAL_OK);
+    RB_init(&modbusRb);
 }
 
 static void APP_initTimers(){
@@ -152,25 +166,23 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
         return;
 
     HAL_StatusTypeDef status;
-    if(huart == DISPLAY_UART){
-        // trata mensagem displayHAL_StatusTypeDef status;
 
+    if(huart == DISPLAY_UART){
+        RB_putByte(&displayRb, displayLastChar);
         do{
             status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
         } while(status != HAL_OK);
     }
 
     else if(huart == DEBUG_UART){
-        // trata mensagem coletora
-
+        RB_putByte(&debugRb, debugLastChar);
         do{
             status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
         } while(status != HAL_OK);
     }
 
     else if(huart == MODBUS_UART){
-        // trata mensagem modbus
-
+        RB_putByte(&modbusRb, modbusLastChar);
         do{
             status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
         } while(status != HAL_OK);
