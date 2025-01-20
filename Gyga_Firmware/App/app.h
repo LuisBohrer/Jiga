@@ -14,6 +14,5 @@
 
 void APP_init(void);
 void APP_poll(void);
-float APP_map(float value, float fromMin, float fromMax, float toMin, float toMax);
 
 #endif /* APP_H_ */
