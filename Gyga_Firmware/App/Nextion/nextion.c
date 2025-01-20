@@ -23,7 +23,7 @@ void NEXTION_init(){
 void NEXTION_sendCharMessage(const char* const message){
     string messageString;
     STRING_charStringToString(message, &messageString);
-    NEXTION_sendStringMessage(string *messageString);
+    NEXTION_sendStringMessage(&messageString);
 }
 
 void NEXTION_sendStringMessage(string *message){
