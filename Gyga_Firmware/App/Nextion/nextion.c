@@ -23,8 +23,7 @@ void NEXTION_init(){
 void NEXTION_sendCharMessage(const char* const message){
     string messageString;
     STRING_charStringToString(message, &messageString);
-    STRING_addString(&messageString, &endPacket);
-    // hal transmit com string_getbuffer
+    NEXTION_sendStringMessage(string *messageString);
 }
 
 void NEXTION_sendStringMessage(string *message){
@@ -69,8 +68,4 @@ void NEXTION_setGlobalVariableValue(const string *variable, int32_t value){
     STRING_addChar(&nextionMessage, '=');
     STRING_addInt(&nextionMessage, value);
     NEXTION_sendStringMessage(&nextionMessage);
-}
-
-void NEXTION_updateReads(uint8_t readingCurrent, uint16_t newReads[10]){
-
 }

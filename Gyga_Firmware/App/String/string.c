@@ -116,7 +116,7 @@ int32_t STRING_stringToInt(const string *inputString){
 float STRING_stringToFloat(const string *inputString, char separator){
     uint32_t i = 0;
     uint8_t separatorReached = 0;
-    float decimalSpaces = 1;
+    float decimalSpaces = 1.0;
     float result = 0.0;
     int8_t signal = 1;
     while(i < inputString->length && !STRING_isDigit(inputString->buffer[i])) i++;

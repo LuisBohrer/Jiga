@@ -11,7 +11,9 @@
 #include "Nextion/nextionComponents.h"
 #include "adc.h"
 #include "usart.h"
+#include "tim.h"
 
+// Reading constants and buffers //
 const float MIN_ADC_READ = 0;
 const float MAX_ADC_READ = 4095;
 const float MIN_VOLTAGE_READ = 0;
@@ -25,16 +27,32 @@ typedef enum{
 } reading_t;
 reading_t reading = READ_VOLTAGE;
 uint8_t newReads = 0;
+
 uint16_t adcVoltageReads[NUMBER_OF_CHANNELS] = {0};
 uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
+// Reading constants and buffers //
 
+// Uart declarations and buffers //
 UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
 uint8_t displayLastChar;
+
 UART_HandleTypeDef *DEBUG_UART = &huart1;
 uint8_t debugLastChar;
+
 UART_HandleTypeDef *MODBUS_UART = &huart3;
 uint8_t modbusLastChar;
+// Uart declarations and buffers //
 
+// Timer counters and periods //
+volatile uint32_t updateReadsCounter_ms = 0;
+const uint32_t UPDATE_READS_PERIOD_MS = 1;
+// Timer counters and periods //
+
+// Static function declarations //
+static void APP_updateReads(void);
+// Static function declarations //
+
+// Application functions //
 void APP_init(){
     NEXTION_init();
     HAL_StatusTypeDef status;
@@ -50,9 +68,17 @@ void APP_init(){
     do{
         status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
     } while(status != HAL_OK);
+    HAL_TIM_Base_Start_IT(&htim6);
 }
 
 void APP_poll(){
+    APP_updateReads();
+}
+
+static void APP_updateReads(){
+    if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS)
+        return;
+
     if(newReads){
         newReads = 0;
         HAL_StatusTypeDef adcStatus;
@@ -84,15 +110,21 @@ void APP_poll(){
                 reading = READ_VOLTAGE;
                 break;
         }
+
+        updateReadsCounter_ms = 0;
     }
 }
+// Application functions //
 
+// Utility functions //
 float APP_map(float value, float fromMin, float fromMax, float toMin, float toMax){
     float percentage = (value - fromMin)/(fromMax - fromMin);
     float result = percentage*(toMax - toMin) + toMin;
     return result;
 }
+// Utility functions //
 
+// Callbacks //
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
     newReads = 1;
 }
@@ -123,3 +155,12 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
         } while(status != HAL_OK);
     }
 }
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
+    // 1ms
+    if(htim == &htim6){
+        if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS)
+            updateReadsCounter_ms++;
+    }
+}
+// Callbacks //
