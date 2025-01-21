@@ -14,73 +14,78 @@
 const string textSufix = {".txt", 4};
 const string valueSufix = {".val", 4};
 const string endPacket = {{0xff, 0xff, 0xff}, 3};
+UART_HandleTypeDef* displayUart;
 
-void NEXTION_sendCharMessage(const char* const message){
-    string messageString;
-    STRING_charStringToString(message, &messageString);
-    NEXTION_sendStringMessage(&messageString);
+void NEXTION_Begin(UART_HandleTypeDef *displayUartAddress){
+    displayUart = displayUartAddress;
 }
 
-void NEXTION_sendStringMessage(string *message){
-    STRING_addString(message, &endPacket);
-    HAL_UART_Transmit(&hlpuart1,
-            STRING_getBuffer(message),
-            STRING_getLength(message),
+void NEXTION_SendCharMessage(const char* const message){
+    string messageString;
+    STRING_CharStringToString(message, &messageString);
+    NEXTION_SendStringMessage(&messageString);
+}
+
+void NEXTION_SendStringMessage(string *message){
+    STRING_AddString(message, &endPacket);
+    HAL_UART_Transmit(displayUart,
+            STRING_GetBuffer(message),
+            STRING_GetLength(message),
             DISPLAY_UART_DEFAULT_TIMEOUT);
 }
 
-void NEXTION_setComponentText(const string *component, const string *newText){
+void NEXTION_SetComponentText(const string *component, const string *newText){
     string nextionMessage;
-    STRING_copyString(component, &nextionMessage);
-    STRING_addString(&nextionMessage, &textSufix);
-    STRING_addCharString(&nextionMessage, "=\"");
-    STRING_addString(&nextionMessage, newText);
-    STRING_addChar(&nextionMessage, '"');
-    NEXTION_sendStringMessage(&nextionMessage);
+    STRING_CopyString(component, &nextionMessage);
+    STRING_AddString(&nextionMessage, &textSufix);
+    STRING_AddCharString(&nextionMessage, "=\"");
+    STRING_AddString(&nextionMessage, newText);
+    STRING_AddChar(&nextionMessage, '"');
+    NEXTION_SendStringMessage(&nextionMessage);
 }
 
-void NEXTION_setComponentIntValue(const string *component, int32_t newValue){
+void NEXTION_SetComponentIntValue(const string *component, int32_t newValue){
     string nextionMessage;
-    STRING_copyString(component, &nextionMessage);
-    STRING_addString(&nextionMessage, &valueSufix);
-    STRING_addChar(&nextionMessage, '=');
-    STRING_addInt(&nextionMessage, newValue);
-    NEXTION_sendStringMessage(&nextionMessage);
+    STRING_CopyString(component, &nextionMessage);
+    STRING_AddString(&nextionMessage, &valueSufix);
+    STRING_AddChar(&nextionMessage, '=');
+    STRING_AddInt(&nextionMessage, newValue);
+    NEXTION_SendStringMessage(&nextionMessage);
 }
 
-void NEXTION_setComponentFloatValue(const string *component, float newValue, uint32_t decimalSpaces){
+void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t decimalSpaces){
     string nextionMessage;
-    STRING_copyString(component, &nextionMessage);
-    STRING_addString(&nextionMessage, &valueSufix);
-    STRING_addChar(&nextionMessage, '=');
-    STRING_addInt(&nextionMessage, newValue*pow(10, decimalSpaces));
-    NEXTION_sendStringMessage(&nextionMessage);
+    STRING_CopyString(component, &nextionMessage);
+    STRING_AddString(&nextionMessage, &valueSufix);
+    STRING_AddChar(&nextionMessage, '=');
+    STRING_AddInt(&nextionMessage, newValue*pow(10, decimalSpaces));
+    NEXTION_SendStringMessage(&nextionMessage);
 }
 
-void NEXTION_setGlobalVariableValue(const string *variable, int32_t value){
+void NEXTION_SetGlobalVariableValue(const string *variable, int32_t value){
     string nextionMessage;
-    STRING_copyString(variable, &nextionMessage);
-    STRING_addChar(&nextionMessage, '=');
-    STRING_addInt(&nextionMessage, value);
-    NEXTION_sendStringMessage(&nextionMessage);
+    STRING_CopyString(variable, &nextionMessage);
+    STRING_AddChar(&nextionMessage, '=');
+    STRING_AddInt(&nextionMessage, value);
+    NEXTION_SendStringMessage(&nextionMessage);
 }
 
 
-displayResponses_t NEXTION_treatMessage(ringBuffer_t *buffer, string *message){
-    while(!RB_isEmpty(buffer)){
-        STRING_addChar(message, RB_getByte(buffer));
+displayResponses_t NEXTION_TreatMessage(ringBuffer_t *buffer, string *message){
+    while(!RB_IsEmpty(buffer)){
+        STRING_AddChar(message, RB_GetByte(buffer));
     }
 
     if(message->length <= 0){
         return NO_MESSAGE;
     }
-    if(!STRING_compareStringsRev(message, &endPacket, 3)){
+    if(!STRING_CompareStringsRev(message, &endPacket, 3)){
         return INCOMPLETE_MESSAGE;
     }
-    if(STRING_getChar(message, 0) == 0x1A){
+    if(STRING_GetChar(message, 0) == 0x1A){
         return ERROR_INVALID_VARIABLE;
     }
-    if(STRING_getChar(message, 0) == 0x24){
+    if(STRING_GetChar(message, 0) == 0x24){
         return ERROR_BUFFER_OVERFLOW;
     }
     return VALID_MESSAGE;

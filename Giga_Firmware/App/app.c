@@ -55,19 +55,20 @@ const uint32_t UPDATE_READS_PERIOD_MS = 1;
 // Timer counters and periods //
 
 // Static function declarations // [Section]
-static void APP_initUarts(void);
-static void APP_initTimers(void);
-static void APP_startAdcReadDma(uint16_t *readsBuffer, reading_t typeOfRead);
-static void APP_updateReads(void);
+static void APP_InitUarts(void);
+static void APP_InitTimers(void);
+static void APP_StartAdcReadDma(uint16_t *readsBuffer, reading_t typeOfRead);
+static void APP_UpdateReads(void);
 // Static function declarations //
 
 // Application functions // [Section]
 uint8_t appStarted = 0;
 void APP_init(){
-    STRING_init(&displayLastMessage);
-    APP_startAdcReadDma(adcVoltageReads, READ_VOLTAGE);
-    APP_initUarts();
-    APP_initTimers();
+    STRING_Init(&displayLastMessage);
+    NEXTION_Begin(DISPLAY_UART);
+    APP_StartAdcReadDma(adcVoltageReads, READ_VOLTAGE);
+    APP_InitUarts();
+    APP_InitTimers();
 
     appStarted = 1;
 }
@@ -76,39 +77,40 @@ void APP_poll(){
     if(!appStarted)
         return;
 
-    APP_updateReads();
-    displayResponses_t aux = NEXTION_treatMessage(&displayRb, &displayLastMessage);
+    APP_UpdateReads();
+    displayResponses_t aux = NEXTION_TreatMessage(&displayRb, &displayLastMessage);
     if(aux != NO_MESSAGE){
-        STRING_clear(&displayLastMessage);
+        STRING_Clear(&displayLastMessage);
     }
+    UTILS_CpuSleep();
 }
 
-static void APP_initUarts(){
+static void APP_InitUarts(){
     HAL_StatusTypeDef status;
     do{
         status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
     } while(status != HAL_OK);
-    RB_init(&displayRb);
+    RB_Init(&displayRb);
 
     do{
         status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
     } while(status != HAL_OK);
-    RB_init(&debugRb);
+    RB_Init(&debugRb);
 
     do{
         status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
     } while(status != HAL_OK);
-    RB_init(&modbusRb);
+    RB_Init(&modbusRb);
 }
 
-static void APP_initTimers(){
+static void APP_InitTimers(){
     HAL_StatusTypeDef status;
     do{
         status = HAL_TIM_Base_Start_IT(&htim6);
     } while(status != HAL_OK);
 }
 
-static void APP_startAdcReadDma(uint16_t *readsBuffer, reading_t typeOfRead){
+static void APP_StartAdcReadDma(uint16_t *readsBuffer, reading_t typeOfRead){
     HAL_StatusTypeDef status;
     do{
         status = HAL_ADC_Start_DMA(&hadc1, (uint32_t*) readsBuffer, NUMBER_OF_CHANNELS);
@@ -116,7 +118,7 @@ static void APP_startAdcReadDma(uint16_t *readsBuffer, reading_t typeOfRead){
     reading = typeOfRead;
 }
 
-static void APP_updateReads(){
+static void APP_UpdateReads(){
     if(!appStarted)
         return;
 
@@ -129,30 +131,28 @@ static void APP_updateReads(){
             case READ_VOLTAGE:
                 float voltageReads_V[10];
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    voltageReads_V[i] = UTILS_map(adcVoltageReads[i],
+                    voltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
-                    NEXTION_setComponentFloatValue(&voltageTxtBx[i], voltageReads_V[i], 2);
+                    NEXTION_SetComponentFloatValue(&voltageTxtBx[i], voltageReads_V[i], 2);
                 }
-                APP_startAdcReadDma(adcCurrentReads, READ_CURRENT);
+                APP_StartAdcReadDma(adcCurrentReads, READ_CURRENT);
                 break;
 
             case READ_CURRENT:
                 float currentReads_mA[10];
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    currentReads_mA[i] = UTILS_map(adcCurrentReads[i],
+                    currentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_CURRENT_READ, MAX_CURRENT_READ);
-                    NEXTION_setComponentFloatValue(&currentTxtBx[i], currentReads_mA[i], 0);
+                    NEXTION_SetComponentFloatValue(&currentTxtBx[i], currentReads_mA[i], 0);
                 }
-                APP_startAdcReadDma(adcVoltageReads, READ_VOLTAGE);
+                APP_StartAdcReadDma(adcVoltageReads, READ_VOLTAGE);
                 break;
         }
 
         updateReadsCounter_ms = 0;
     }
-
-    UTILS_cpuSleep();
 }
 // Application functions //
 
@@ -168,21 +168,21 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
     HAL_StatusTypeDef status;
 
     if(huart == DISPLAY_UART){
-        RB_putByte(&displayRb, displayLastChar);
+        RB_PutByte(&displayRb, displayLastChar);
         do{
             status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
         } while(status != HAL_OK);
     }
 
     else if(huart == DEBUG_UART){
-        RB_putByte(&debugRb, debugLastChar);
+        RB_PutByte(&debugRb, debugLastChar);
         do{
             status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
         } while(status != HAL_OK);
     }
 
     else if(huart == MODBUS_UART){
-        RB_putByte(&modbusRb, modbusLastChar);
+        RB_PutByte(&modbusRb, modbusLastChar);
         do{
             status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
         } while(status != HAL_OK);

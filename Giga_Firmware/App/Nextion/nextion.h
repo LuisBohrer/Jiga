@@ -10,6 +10,7 @@
 
 #include "String/string.h"
 #include "RingBuffer/ringBuffer.h"
+#include "usart.h"
 
 #define DISPLAY_UART_DEFAULT_TIMEOUT 100
 
@@ -21,12 +22,13 @@ typedef enum{
     VALID_MESSAGE
 } displayResponses_t;
 
-void NEXTION_sendCharMessage(const char* const message);
-void NEXTION_sendStringMessage(string *message);
-void NEXTION_setComponentText(const string *component, const string *newText);
-void NEXTION_setComponentIntValue(const string *component, int32_t newValue);
-void NEXTION_setComponentFloatValue(const string *component, float newValue, uint32_t decimalSpaces);
-void NEXTION_setGlobalVariableValue(const string *variable, int32_t value);
-displayResponses_t NEXTION_treatMessage(ringBuffer_t *buffer, string *message);
+void NEXTION_Begin(UART_HandleTypeDef *displayUartAddress);
+void NEXTION_SendCharMessage(const char* const message);
+void NEXTION_SendStringMessage(string *message);
+void NEXTION_SetComponentText(const string *component, const string *newText);
+void NEXTION_SetComponentIntValue(const string *component, int32_t newValue);
+void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t decimalSpaces);
+void NEXTION_SetGlobalVariableValue(const string *variable, int32_t value);
+displayResponses_t NEXTION_TreatMessage(ringBuffer_t *buffer, string *message);
 
 #endif /* NEXTION_NEXTION_H_ */

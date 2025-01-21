@@ -7,14 +7,14 @@
 
 #include "RingBuffer/ringBuffer.h"
 
-void RB_init(ringBuffer_t *ringBuffer){
+void RB_Init(ringBuffer_t *ringBuffer){
     ringBuffer->first = 0;
     ringBuffer->last = 0;
     ringBuffer->numberOfBytes = 0;
 }
 
-void RB_putByte(ringBuffer_t *ringBuffer, uint8_t byte){
-    if(RB_isFull(ringBuffer))
+void RB_PutByte(ringBuffer_t *ringBuffer, uint8_t byte){
+    if(RB_IsFull(ringBuffer))
         return;
 
     ringBuffer->buffer[ringBuffer->last++] = byte;
@@ -24,8 +24,8 @@ void RB_putByte(ringBuffer_t *ringBuffer, uint8_t byte){
     }
 }
 
-uint8_t RB_getByte(ringBuffer_t *ringBuffer){
-    if(RB_isEmpty(ringBuffer))
+uint8_t RB_GetByte(ringBuffer_t *ringBuffer){
+    if(RB_IsEmpty(ringBuffer))
         return 0;
 
     uint8_t byte;
@@ -37,14 +37,14 @@ uint8_t RB_getByte(ringBuffer_t *ringBuffer){
     return byte;
 }
 
-uint8_t RB_isEmpty(ringBuffer_t *ringBuffer){
+uint8_t RB_IsEmpty(ringBuffer_t *ringBuffer){
     return ringBuffer->numberOfBytes <= 0;
 }
 
-uint8_t RB_isFull(ringBuffer_t *ringBuffer){
+uint8_t RB_IsFull(ringBuffer_t *ringBuffer){
     return ringBuffer->numberOfBytes >= RING_BUFFER_DEFAULT_SIZE;
 }
 
-uint16_t RB_getNumberOfBytes(ringBuffer_t *ringBuffer){
+uint16_t RB_GetNumberOfBytes(ringBuffer_t *ringBuffer){
     return ringBuffer->numberOfBytes;
 }

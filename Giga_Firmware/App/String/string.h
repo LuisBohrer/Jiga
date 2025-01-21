@@ -18,24 +18,24 @@ typedef struct string {
         uint16_t length;
 } string;
 
-void STRING_init(string *self);
-uint8_t* STRING_getBuffer(string *self);
-uint16_t STRING_getLength(string *self);
-void STRING_addChar(string *self, char character);
-void STRING_addInt(string *self, int32_t number);
-void STRING_addFloat(string *self, float number, uint32_t decimalSpaces, char separator);
-void STRING_addCharString(string *self, const char* const inputCharString);
-void STRING_addString(string *self, const string *inputString);
-void STRING_copyString(const string *copyFrom, string *copyTo);
-void STRING_clear(string *self);
-uint8_t STRING_isDigit(char inputChar);
-uint8_t STRING_isPrintable(char inputChar);
-void STRING_charStringToString(const char* const inputCharString, string *outputString);
-void STRING_stringToCharString(const string *inputString, char *outputCharString);
-int32_t STRING_stringToInt(const string *inputString);
-float STRING_stringToFloat(const string *inputString, char separator);
-uint8_t STRING_compareStrings(const string *string1, const string *string2, uint16_t length);
-uint8_t STRING_compareStringsRev(const string *string1, const string *string2, uint16_t length);
-uint8_t STRING_getChar(const string *inputString, uint16_t index);
+void STRING_Init(string *self);
+uint8_t* STRING_GetBuffer(string *self);
+uint16_t STRING_GetLength(string *self);
+void STRING_AddChar(string *self, char character);
+void STRING_AddInt(string *self, int32_t number);
+void STRING_AddFloat(string *self, float number, uint32_t decimalSpaces, char separator);
+void STRING_AddCharString(string *self, const char* const inputCharString);
+void STRING_AddString(string *self, const string *inputString);
+void STRING_CopyString(const string *copyFrom, string *copyTo);
+void STRING_Clear(string *self);
+uint8_t STRING_IsDigit(char inputChar);
+uint8_t STRING_IsPrintable(char inputChar);
+void STRING_CharStringToString(const char* const inputCharString, string *outputString);
+void STRING_StringToCharString(const string *inputString, char *outputCharString);
+int32_t STRING_StringToInt(const string *inputString);
+float STRING_StringToFloat(const string *inputString, char separator);
+uint8_t STRING_CompareStrings(const string *string1, const string *string2, uint16_t length);
+uint8_t STRING_CompareStringsRev(const string *string1, const string *string2, uint16_t length);
+uint8_t STRING_GetChar(const string *inputString, uint16_t index);
 
 #endif /* STRING_STRING_H_ */
