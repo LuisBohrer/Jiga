@@ -9,7 +9,6 @@
 #define NEXTION_NEXTION_H_
 
 #include "String/string.h"
-#include "RingBuffer/ringBuffer.h"
 #include "usart.h"
 
 #define DISPLAY_UART_DEFAULT_TIMEOUT 100
@@ -29,6 +28,6 @@ void NEXTION_SetComponentText(const string *component, const string *newText);
 void NEXTION_SetComponentIntValue(const string *component, int32_t newValue);
 void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t decimalSpaces);
 void NEXTION_SetGlobalVariableValue(const string *variable, int32_t value);
-displayResponses_t NEXTION_TreatMessage(ringBuffer_t *buffer, string *message);
+displayResponses_t NEXTION_TreatMessage(string *message);
 
 #endif /* NEXTION_NEXTION_H_ */

@@ -71,11 +71,7 @@ void NEXTION_SetGlobalVariableValue(const string *variable, int32_t value){
 }
 
 
-displayResponses_t NEXTION_TreatMessage(ringBuffer_t *buffer, string *message){
-    while(!RB_IsEmpty(buffer)){
-        STRING_AddChar(message, RB_GetByte(buffer));
-    }
-
+displayResponses_t NEXTION_TreatMessage(string *message){
     if(message->length <= 0){
         return NO_MESSAGE;
     }

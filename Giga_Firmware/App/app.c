@@ -27,8 +27,8 @@ typedef enum{
     READ_VOLTAGE = 0,
     READ_CURRENT
 } reading_t;
-reading_t reading = READ_VOLTAGE;
-uint8_t newReads = 0;
+volatile reading_t reading = READ_VOLTAGE;
+volatile uint8_t newReads = 0;
 
 uint16_t adcVoltageReads[NUMBER_OF_CHANNELS] = {0};
 uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
@@ -57,8 +57,9 @@ const uint32_t UPDATE_READS_PERIOD_MS = 1;
 // Static function declarations // [Section]
 static void APP_InitUarts(void);
 static void APP_InitTimers(void);
-static void APP_StartAdcReadDma(uint16_t *readsBuffer, reading_t typeOfRead);
+static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_UpdateReads(void);
+static void APP_TreatDisplayMessage(void);
 // Static function declarations //
 
 // Application functions // [Section]
@@ -66,7 +67,7 @@ uint8_t appStarted = 0;
 void APP_init(){
     STRING_Init(&displayLastMessage);
     NEXTION_Begin(DISPLAY_UART);
-    APP_StartAdcReadDma(adcVoltageReads, READ_VOLTAGE);
+    APP_StartAdcReadDma(READ_VOLTAGE);
     APP_InitUarts();
     APP_InitTimers();
 
@@ -78,10 +79,8 @@ void APP_poll(){
         return;
 
     APP_UpdateReads();
-    displayResponses_t aux = NEXTION_TreatMessage(&displayRb, &displayLastMessage);
-    if(aux != NO_MESSAGE){
-        STRING_Clear(&displayLastMessage);
-    }
+    APP_TreatDisplayMessage();
+
     UTILS_CpuSleep();
 }
 
@@ -110,8 +109,9 @@ static void APP_InitTimers(){
     } while(status != HAL_OK);
 }
 
-static void APP_StartAdcReadDma(uint16_t *readsBuffer, reading_t typeOfRead){
+static void APP_StartAdcReadDma(reading_t typeOfRead){
     HAL_StatusTypeDef status;
+    uint16_t *readsBuffer = typeOfRead == READ_VOLTAGE ? adcVoltageReads : adcCurrentReads;
     do{
         status = HAL_ADC_Start_DMA(&hadc1, (uint32_t*) readsBuffer, NUMBER_OF_CHANNELS);
     } while(status != HAL_OK);
@@ -125,6 +125,10 @@ static void APP_UpdateReads(){
     if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS)
         return;
 
+    if(!newReads && hadc1.State != HAL_ADC_STATE_REG_BUSY){
+        APP_StartAdcReadDma(!reading);
+    }
+
     if(newReads){
         newReads = 0;
         switch(reading){
@@ -136,7 +140,6 @@ static void APP_UpdateReads(){
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                     NEXTION_SetComponentFloatValue(&voltageTxtBx[i], voltageReads_V[i], 2);
                 }
-                APP_StartAdcReadDma(adcCurrentReads, READ_CURRENT);
                 break;
 
             case READ_CURRENT:
@@ -147,11 +150,22 @@ static void APP_UpdateReads(){
                             MIN_CURRENT_READ, MAX_CURRENT_READ);
                     NEXTION_SetComponentFloatValue(&currentTxtBx[i], currentReads_mA[i], 0);
                 }
-                APP_StartAdcReadDma(adcVoltageReads, READ_VOLTAGE);
                 break;
         }
 
         updateReadsCounter_ms = 0;
+    }
+}
+
+static void APP_TreatDisplayMessage(){
+    while(!RB_IsEmpty(&displayRb)){
+        STRING_AddChar(&displayLastMessage, RB_GetByte(&displayRb));
+    }
+
+    displayResponses_t aux = NEXTION_TreatMessage(&displayLastMessage);
+
+    if(aux != NO_MESSAGE){
+        STRING_Clear(&displayLastMessage);
     }
 }
 // Application functions //

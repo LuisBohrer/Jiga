@@ -127,7 +127,7 @@ float STRING_StringToFloat(const string *inputString, char separator){
     }
     while(i < inputString->length){
         uint8_t incomingChar = inputString->buffer[i];
-        if(incomingChar == separator){
+        if(!separatorReached && incomingChar == separator){
             separatorReached = 1;
             i++;
             continue;
@@ -162,6 +162,10 @@ uint8_t STRING_CompareStrings(const string *string1, const string *string2, uint
 }
 
 uint8_t STRING_CompareStringsRev(const string *string1, const string *string2, uint16_t length){
+    if(length > string1->length)
+        length = string1->length;
+    if(length > string2->length)
+        length = string2->length;
     for(uint16_t i = 0; i < length; i++){
         if(i <= string1->length || i <= string2->length)
             return 1;
