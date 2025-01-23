@@ -11,9 +11,11 @@
 #include "Nextion/nextionComponents.h"
 #include "Utils/utils.h"
 #include "RingBuffer/ringBuffer.h"
+#include "Comm/comm.h"
 #include "adc.h"
 #include "usart.h"
 #include "tim.h"
+#include <stdio.h>
 
 // ADC constants and buffers // [Section]
 const float MIN_ADC_READ = 0;
@@ -31,16 +33,21 @@ volatile reading_t reading = READ_VOLTAGE;
 volatile uint8_t newReads = 0;
 
 uint16_t adcVoltageReads[NUMBER_OF_CHANNELS] = {0};
+float convertedVoltageReads_V[NUMBER_OF_CHANNELS] = {0};
+
 uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
+float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 // ADC constants and buffers //
 
 // Uart declarations and buffers // [Section]
-UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
+//UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
+UART_HandleTypeDef *DISPLAY_UART = &huart1;
 uint8_t displayLastChar;
 ringBuffer_t displayRb;
 string displayLastMessage;
 
-UART_HandleTypeDef *DEBUG_UART = &huart1;
+//UART_HandleTypeDef *DEBUG_UART = &huart1;
+UART_HandleTypeDef *DEBUG_UART = &hlpuart1;
 uint8_t debugLastChar;
 ringBuffer_t debugRb;
 
@@ -52,6 +59,9 @@ ringBuffer_t modbusRb;
 // Timer counters and periods // [Section]
 volatile uint32_t updateReadsCounter_ms = 0;
 const uint32_t UPDATE_READS_PERIOD_MS = 1;
+
+volatile uint32_t sendLogCounter_ms = 0;
+const uint32_t SEND_LOG_PERIOD_MS = 1000;
 // Timer counters and periods //
 
 // Static function declarations // [Section]
@@ -60,14 +70,19 @@ static void APP_InitTimers(void);
 static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_UpdateReads(void);
 static void APP_TreatDisplayMessage(void);
+static void APP_SendLog(void);
 // Static function declarations //
 
 // Application functions // [Section]
 uint8_t appStarted = 0;
 void APP_init(){
     STRING_Init(&displayLastMessage);
+
     NEXTION_Begin(DISPLAY_UART);
+    COMM_Begin(DEBUG_UART);
+
     APP_StartAdcReadDma(READ_VOLTAGE);
+
     APP_InitUarts();
     APP_InitTimers();
 
@@ -80,6 +95,7 @@ void APP_poll(){
 
     APP_UpdateReads();
     APP_TreatDisplayMessage();
+    APP_SendLog();
 
     UTILS_CpuSleep();
 }
@@ -133,22 +149,20 @@ static void APP_UpdateReads(){
         newReads = 0;
         switch(reading){
             case READ_VOLTAGE:
-                float voltageReads_V[10];
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    voltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
+                    convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
-                    NEXTION_SetComponentFloatValue(&voltageTxtBx[i], voltageReads_V[i], 2);
+                    NEXTION_SetComponentFloatValue(&voltageTxtBx[i], convertedVoltageReads_V[i], 2);
                 }
                 break;
 
             case READ_CURRENT:
-                float currentReads_mA[10];
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    currentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
+                    convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_CURRENT_READ, MAX_CURRENT_READ);
-                    NEXTION_SetComponentFloatValue(&currentTxtBx[i], currentReads_mA[i], 0);
+                    NEXTION_SetComponentFloatValue(&currentTxtBx[i], convertedCurrentReads_mA[i], 0);
                 }
                 break;
         }
@@ -162,11 +176,32 @@ static void APP_TreatDisplayMessage(){
         STRING_AddChar(&displayLastMessage, RB_GetByte(&displayRb));
     }
 
-    displayResponses_t aux = NEXTION_TreatMessage(&displayLastMessage);
+    if(STRING_GetLength(&displayLastMessage) > 0){
+        displayResponses_t aux = NEXTION_TreatMessage(&displayLastMessage);
 
-    if(aux != NO_MESSAGE){
-        STRING_Clear(&displayLastMessage);
+        if(aux != NO_MESSAGE){
+            STRING_Clear(&displayLastMessage);
+        }
     }
+}
+
+static void APP_SendLog(){
+    if(sendLogCounter_ms < SEND_LOG_PERIOD_MS)
+        return;
+
+    string logMessage;
+    STRING_Init(&logMessage);
+
+    for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+        STRING_AddCharString(&logMessage, "\n\r");
+        char line[100] = {'\0'};
+        sprintf(line, "[LOG] Read %d: Voltage = %.2f V ; Current = %.2f mA", i, convertedVoltageReads_V[i], convertedCurrentReads_mA[i]);
+        STRING_AddCharString(&logMessage, line);
+    }
+    STRING_AddCharString(&logMessage, "\n\r");
+
+    COMM_SendString(&logMessage);
+    sendLogCounter_ms = 0;
 }
 // Application functions //
 
@@ -211,6 +246,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     if(htim == &htim6){
         if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS)
             updateReadsCounter_ms++;
+        if(sendLogCounter_ms < SEND_LOG_PERIOD_MS)
+            sendLogCounter_ms++;
     }
 }
 // Callbacks //

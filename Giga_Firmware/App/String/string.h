@@ -10,8 +10,7 @@
 
 #include <stdint.h>
 
-//const uint32_t BUFFER_SIZE = 100;
-#define BUFFER_SIZE 100
+#define BUFFER_SIZE 1000
 
 typedef struct string {
         uint8_t buffer[BUFFER_SIZE];

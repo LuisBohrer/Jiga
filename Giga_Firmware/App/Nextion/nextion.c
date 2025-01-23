@@ -13,7 +13,7 @@
 
 const string textSufix = {".txt", 4};
 const string valueSufix = {".val", 4};
-const string endPacket = {{0xff, 0xff, 0xff}, 3};
+const string nextionEndPacket = {{0xff, 0xff, 0xff}, 3};
 UART_HandleTypeDef* displayUart;
 
 void NEXTION_Begin(UART_HandleTypeDef *displayUartAddress){
@@ -27,7 +27,7 @@ void NEXTION_SendCharMessage(const char* const message){
 }
 
 void NEXTION_SendStringMessage(string *message){
-    STRING_AddString(message, &endPacket);
+    STRING_AddString(message, &nextionEndPacket);
     HAL_UART_Transmit(displayUart,
             STRING_GetBuffer(message),
             STRING_GetLength(message),
@@ -75,7 +75,7 @@ displayResponses_t NEXTION_TreatMessage(string *message){
     if(message->length <= 0){
         return NO_MESSAGE;
     }
-    if(!STRING_CompareStringsRev(message, &endPacket, 3)){
+    if(!STRING_CompareStringsRev(message, &nextionEndPacket, 3)){
         return INCOMPLETE_MESSAGE;
     }
     if(STRING_GetChar(message, 0) == 0x1A){
