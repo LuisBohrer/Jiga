@@ -50,10 +50,12 @@ string displayLastMessage;
 UART_HandleTypeDef *DEBUG_UART = &hlpuart1;
 uint8_t debugLastChar;
 ringBuffer_t debugRb;
+string debugLastMessage;
 
 UART_HandleTypeDef *MODBUS_UART = &huart3;
 uint8_t modbusLastChar;
 ringBuffer_t modbusRb;
+string modbusLastMessage;
 // Uart declarations and buffers //
 
 // Timer counters and periods // [Section]
@@ -71,12 +73,12 @@ static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_UpdateReads(void);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
+static void APP_TreatDebugMessage(void);
 // Static function declarations //
 
 // Application functions // [Section]
 uint8_t appStarted = 0;
 void APP_init(){
-    STRING_Init(&displayLastMessage);
 
     NEXTION_Begin(DISPLAY_UART);
     COMM_Begin(DEBUG_UART);
@@ -95,7 +97,7 @@ void APP_poll(){
 
     APP_UpdateReads();
     APP_TreatDisplayMessage();
-    APP_SendLog();
+    APP_TreatDebugMessage();
 
     UTILS_CpuSleep();
 }
@@ -106,16 +108,19 @@ static void APP_InitUarts(){
         status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
     } while(status != HAL_OK);
     RB_Init(&displayRb);
+    STRING_Init(&displayLastMessage);
 
     do{
         status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
     } while(status != HAL_OK);
     RB_Init(&debugRb);
+    STRING_Init(&debugLastMessage);
 
     do{
         status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
     } while(status != HAL_OK);
     RB_Init(&modbusRb);
+    STRING_Init(&modbusLastMessage);
 }
 
 static void APP_InitTimers(){
@@ -185,9 +190,63 @@ static void APP_TreatDisplayMessage(){
     }
 }
 
+static void APP_TreatDebugMessage(){
+    while(!RB_IsEmpty(&debugRb)){
+        STRING_AddChar(&debugLastMessage, RB_GetByte(&debugRb));
+    }
+
+    if(STRING_GetLength(&debugLastMessage) > 0){
+        debugRequest_t request = COMM_TreatResponse(&debugLastMessage);
+        if(request == INCOMPLETE_REQUEST)
+            return;
+
+        COMM_SendStartPacked();
+        switch(request){
+            case INVALID_REQUEST:
+                COMM_SendAck(NACK);
+                break;
+
+            case SEND_VOLTAGE_READS:
+                COMM_SendAck(ACK_VOLTAGE_READS);
+                COMM_SendValues16Bits(adcVoltageReads, NUMBER_OF_CHANNELS);
+                break;
+
+            case SEND_CURRENT_READS:
+                COMM_SendAck(ACK_CURRENT_READS);
+                COMM_SendValues16Bits(adcCurrentReads, NUMBER_OF_CHANNELS);
+                break;
+
+            case SEND_ALL_READS:
+                COMM_SendAck(ACK_ALL_READS);
+                COMM_SendValues16Bits(adcVoltageReads, NUMBER_OF_CHANNELS);
+                COMM_SendValues16Bits(adcCurrentReads, NUMBER_OF_CHANNELS);
+                break;
+
+            case SET_MODBUS_CONFIG:
+                COMM_SendAck(ACK_MODBUS_CONFIG);
+                break;
+
+            case CHANGE_SCALE:
+                COMM_SendAck(ACK_CHANGE_SCALE);
+                break;
+
+            case LOGS:
+                COMM_SendAck(ACK_LOGS);
+                APP_SendLog();
+                break;
+
+            default:
+                COMM_SendAck(NACK);
+                break;
+        }
+        COMM_SendEndPacked();
+    }
+    STRING_Clear(&debugLastMessage);
+}
+
 static void APP_SendLog(){
-    if(sendLogCounter_ms < SEND_LOG_PERIOD_MS)
-        return;
+//    if(sendLogCounter_ms < SEND_LOG_PERIOD_MS)
+//        return;
 
     string logMessage;
     STRING_Init(&logMessage);
