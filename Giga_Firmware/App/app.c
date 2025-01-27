@@ -40,14 +40,14 @@ float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 // ADC constants and buffers //
 
 // Uart declarations and buffers // [Section]
-//UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
-UART_HandleTypeDef *DISPLAY_UART = &huart1;
+UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
+//UART_HandleTypeDef *DISPLAY_UART = &huart1;
 uint8_t displayLastChar;
 ringBuffer_t displayRb;
 string displayLastMessage;
 
-//UART_HandleTypeDef *DEBUG_UART = &huart1;
-UART_HandleTypeDef *DEBUG_UART = &hlpuart1;
+UART_HandleTypeDef *DEBUG_UART = &huart1;
+//UART_HandleTypeDef *DEBUG_UART = &hlpuart1;
 uint8_t debugLastChar;
 ringBuffer_t debugRb;
 string debugLastMessage;
@@ -200,7 +200,13 @@ static void APP_TreatDebugMessage(){
         if(request == INCOMPLETE_REQUEST)
             return;
 
-        COMM_SendStartPacked();
+//        if(request == LOGS){
+//            APP_SendLog();
+//            STRING_Clear(&debugLastMessage);
+//            return;
+//        }
+
+        COMM_SendStartPacket();
         switch(request){
             case INVALID_REQUEST:
                 COMM_SendAck(NACK);
@@ -239,27 +245,27 @@ static void APP_TreatDebugMessage(){
                 COMM_SendAck(NACK);
                 break;
         }
-        COMM_SendEndPacked();
+        COMM_SendEndPacket();
     }
     STRING_Clear(&debugLastMessage);
 }
 
 static void APP_SendLog(){
-//    if(sendLogCounter_ms < SEND_LOG_PERIOD_MS)
-//        return;
-
     string logMessage;
-    STRING_Init(&logMessage);
 
     for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+        STRING_Init(&logMessage);
         STRING_AddCharString(&logMessage, "\n\r");
         char line[100] = {'\0'};
         sprintf(line, "[LOG] Read %d: Voltage = %.2f V ; Current = %.2f mA", i, convertedVoltageReads_V[i], convertedCurrentReads_mA[i]);
         STRING_AddCharString(&logMessage, line);
+        STRING_AddCharString(&logMessage, "\n\r");
+        COMM_SendStartPacket();
+        COMM_SendAck(ACK_LOGS);
+        COMM_SendString(&logMessage);
+        COMM_SendEndPacket();
     }
-    STRING_AddCharString(&logMessage, "\n\r");
 
-    COMM_SendString(&logMessage);
     sendLogCounter_ms = 0;
 }
 // Application functions //

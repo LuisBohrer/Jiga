@@ -33,8 +33,8 @@ typedef enum{
 } debugAckSignals_t;
 
 void COMM_Begin(UART_HandleTypeDef *huart);
-void COMM_SendStartPacked(void);
-void COMM_SendEndPacked(void);
+void COMM_SendStartPacket(void);
+void COMM_SendEndPacket(void);
 void COMM_SendAck(debugAckSignals_t ack);
 void COMM_SendValues8Bits(uint8_t *values, uint16_t length);
 void COMM_SendValues16Bits(uint16_t *values, uint16_t length);

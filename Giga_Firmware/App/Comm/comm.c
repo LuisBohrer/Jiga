@@ -23,11 +23,11 @@ void COMM_Begin(UART_HandleTypeDef *huart){
     debugUart = huart;
 }
 
-void COMM_SendStartPacked(){
+void COMM_SendStartPacket(){
     HAL_UART_Transmit(debugUart, STRING_GetBuffer(&debugStartPacket), STRING_GetLength(&debugStartPacket), DEFAULT_UART_TIMEOUT);
 }
 
-void COMM_SendEndPacked(){
+void COMM_SendEndPacket(){
     HAL_UART_Transmit(debugUart, STRING_GetBuffer(&debugEndPacket), STRING_GetLength(&debugEndPacket), DEFAULT_UART_TIMEOUT);
 }
 
@@ -59,9 +59,9 @@ void COMM_SendChar(uint8_t *buffer, uint16_t length){
 debugRequest_t COMM_TreatResponse(string *message){
     if(STRING_GetLength(message) <= 3)
         return INCOMPLETE_REQUEST;
-    if(!STRING_CompareStrings(message, &debugStartPacket, STRING_GetLength(&debugStartPacket)))
-        return INVALID_REQUEST;
     if(!STRING_CompareStringsRev(message, &debugEndPacket, STRING_GetLength(&debugEndPacket)))
+        return INCOMPLETE_REQUEST;
+    if(!STRING_CompareStrings(message, &debugStartPacket, STRING_GetLength(&debugStartPacket)))
         return INVALID_REQUEST;
     if(STRING_GetChar(message, 2) == INCOMPLETE_REQUEST)
         return INVALID_REQUEST;
