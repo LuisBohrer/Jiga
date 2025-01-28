@@ -16,6 +16,7 @@
 #include "usart.h"
 #include "tim.h"
 #include <stdio.h>
+#include <math.h>
 
 // ADC constants and buffers // [Section]
 const float MIN_ADC_READ = 0;
@@ -39,6 +40,10 @@ uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
 float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 // ADC constants and buffers //
 
+// Display constants // [Section]
+const uint16_t NUMBER_OF_DIGITS_IN_BOX = 4;
+// Display constants //
+
 // Uart declarations and buffers // [Section]
 UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
 uint8_t displayLastChar;
@@ -58,7 +63,7 @@ string modbusLastMessage;
 
 // Timer counters and periods // [Section]
 volatile uint32_t updateReadsCounter_ms = 0;
-const uint32_t UPDATE_READS_PERIOD_MS = 100;
+const uint32_t UPDATE_READS_PERIOD_MS = 1;
 
 volatile uint32_t sendLogCounter_ms = 0;
 const uint32_t SEND_LOG_PERIOD_MS = 1000;
@@ -158,19 +163,14 @@ static void APP_UpdateReads(){
                     convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
-                    if(convertedVoltageReads_V[i] < 1000){
+                    for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
+                        if(convertedVoltageReads_V[i] > order){
+                            break;
+                        }
                         integerSpaces--;
-                        decimalSpaces++;
-                    }
-                    if(convertedVoltageReads_V[i] < 100){
-                        integerSpaces--;
-                        decimalSpaces++;
-                    }
-                    if(convertedVoltageReads_V[i] < 10){
-                        integerSpaces--;
-                    }
-                    if(convertedVoltageReads_V[i] < 1){
-                        integerSpaces--;
+                        if(decimalSpaces < 2){
+                            decimalSpaces++;
+                        }
                     }
                     NEXTION_SetComponentFloatValue(&voltageTxtBx[i], convertedVoltageReads_V[i], integerSpaces, decimalSpaces);
                 }
@@ -178,30 +178,24 @@ static void APP_UpdateReads(){
 
             case READ_CURRENT:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    uint16_t integerSpaces = 4;
+                    uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
                     uint16_t decimalSpaces = 0;
                     convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_CURRENT_READ, MAX_CURRENT_READ);
-                    if(convertedCurrentReads_mA[i] < 1000){
+                    for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
+                        if(convertedCurrentReads_mA[i] > order){
+                            break;
+                        }
                         integerSpaces--;
-                        decimalSpaces++;
-                    }
-                    if(convertedCurrentReads_mA[i] < 100){
-                        integerSpaces--;
-                        decimalSpaces++;
-                    }
-                    if(convertedCurrentReads_mA[i] < 10){
-                        integerSpaces--;
-                    }
-                    if(convertedCurrentReads_mA[i] < 1){
-                        integerSpaces--;
+                        if(decimalSpaces < 2){
+                            decimalSpaces++;
+                        }
                     }
                     NEXTION_SetComponentFloatValue(&currentTxtBx[i], convertedCurrentReads_mA[i], integerSpaces, decimalSpaces);
                 }
                 break;
         }
-
         updateReadsCounter_ms = 0;
     }
 }
