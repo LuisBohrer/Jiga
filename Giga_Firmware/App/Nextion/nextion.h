@@ -26,7 +26,7 @@ void NEXTION_SendCharMessage(const char* const message);
 void NEXTION_SendStringMessage(string *message);
 void NEXTION_SetComponentText(const string *component, const string *newText);
 void NEXTION_SetComponentIntValue(const string *component, int32_t newValue);
-void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t decimalSpaces);
+void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t integerSpaces, uint32_t decimalSpaces);
 void NEXTION_SetGlobalVariableValue(const string *variable, int32_t value);
 displayResponses_t NEXTION_TreatMessage(string *message);
 

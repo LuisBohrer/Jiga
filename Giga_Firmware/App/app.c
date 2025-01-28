@@ -58,7 +58,7 @@ string modbusLastMessage;
 
 // Timer counters and periods // [Section]
 volatile uint32_t updateReadsCounter_ms = 0;
-const uint32_t UPDATE_READS_PERIOD_MS = 1;
+const uint32_t UPDATE_READS_PERIOD_MS = 100;
 
 volatile uint32_t sendLogCounter_ms = 0;
 const uint32_t SEND_LOG_PERIOD_MS = 1000;
@@ -153,19 +153,51 @@ static void APP_UpdateReads(){
         switch(reading){
             case READ_VOLTAGE:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+                    uint16_t integerSpaces = 4;
+                    uint16_t decimalSpaces = 0;
                     convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
-                    NEXTION_SetComponentFloatValue(&voltageTxtBx[i], convertedVoltageReads_V[i], 2);
+                    if(convertedVoltageReads_V[i] < 1000){
+                        integerSpaces--;
+                        decimalSpaces++;
+                    }
+                    if(convertedVoltageReads_V[i] < 100){
+                        integerSpaces--;
+                        decimalSpaces++;
+                    }
+                    if(convertedVoltageReads_V[i] < 10){
+                        integerSpaces--;
+                    }
+                    if(convertedVoltageReads_V[i] < 1){
+                        integerSpaces--;
+                    }
+                    NEXTION_SetComponentFloatValue(&voltageTxtBx[i], convertedVoltageReads_V[i], integerSpaces, decimalSpaces);
                 }
                 break;
 
             case READ_CURRENT:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+                    uint16_t integerSpaces = 4;
+                    uint16_t decimalSpaces = 0;
                     convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_CURRENT_READ, MAX_CURRENT_READ);
-                    NEXTION_SetComponentFloatValue(&currentTxtBx[i], convertedCurrentReads_mA[i], 0);
+                    if(convertedCurrentReads_mA[i] < 1000){
+                        integerSpaces--;
+                        decimalSpaces++;
+                    }
+                    if(convertedCurrentReads_mA[i] < 100){
+                        integerSpaces--;
+                        decimalSpaces++;
+                    }
+                    if(convertedCurrentReads_mA[i] < 10){
+                        integerSpaces--;
+                    }
+                    if(convertedCurrentReads_mA[i] < 1){
+                        integerSpaces--;
+                    }
+                    NEXTION_SetComponentFloatValue(&currentTxtBx[i], convertedCurrentReads_mA[i], integerSpaces, decimalSpaces);
                 }
                 break;
         }

@@ -13,6 +13,8 @@
 
 const string textSufix = {".txt", 4};
 const string valueSufix = {".val", 4};
+const string numberOfIntSufix = {".vvs0", 5};
+const string numberOfDecSufix = {".vvs1", 5};
 const string nextionEndPacket = {{0xff, 0xff, 0xff}, 3};
 UART_HandleTypeDef* displayUart;
 
@@ -53,8 +55,20 @@ void NEXTION_SetComponentIntValue(const string *component, int32_t newValue){
     NEXTION_SendStringMessage(&nextionMessage);
 }
 
-void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t decimalSpaces){
+void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t integerSpaces, uint32_t decimalSpaces){
     string nextionMessage;
+    STRING_CopyString(component, &nextionMessage);
+    STRING_AddString(&nextionMessage, &numberOfIntSufix);
+    STRING_AddChar(&nextionMessage, '=');
+    STRING_AddInt(&nextionMessage, integerSpaces);
+    NEXTION_SendStringMessage(&nextionMessage);
+
+    STRING_CopyString(component, &nextionMessage);
+    STRING_AddString(&nextionMessage, &numberOfDecSufix);
+    STRING_AddChar(&nextionMessage, '=');
+    STRING_AddInt(&nextionMessage, decimalSpaces);
+    NEXTION_SendStringMessage(&nextionMessage);
+
     STRING_CopyString(component, &nextionMessage);
     STRING_AddString(&nextionMessage, &valueSufix);
     STRING_AddChar(&nextionMessage, '=');
