@@ -8,7 +8,7 @@
 #include <stdio.h>
 #include "modbus.h"
 #include "RingBuffer/ringBuffer.h"
-//#include "crc.h"
+#include "crc.h"
 
 
 // FUNÇOES ESTATICAS //
