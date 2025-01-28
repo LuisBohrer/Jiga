@@ -25,5 +25,6 @@ uint8_t RB_GetByte(ringBuffer_t *ringBuffer);
 uint8_t RB_IsEmpty(ringBuffer_t *ringBuffer);
 uint8_t RB_IsFull(ringBuffer_t *ringBuffer);
 uint16_t RB_GetNumberOfBytes(ringBuffer_t *ringBuffer);
+void RB_ClearBuffer(ringBuffer_t *ringBuffer);
 
 #endif /* RINGBUFFER_RINGBUFFER_H_ */

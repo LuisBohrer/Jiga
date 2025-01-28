@@ -48,3 +48,8 @@ uint8_t RB_IsFull(ringBuffer_t *ringBuffer){
 uint16_t RB_GetNumberOfBytes(ringBuffer_t *ringBuffer){
     return ringBuffer->numberOfBytes;
 }
+
+void RB_ClearBuffer(ringBuffer_t *ringBuffer){
+    ringBuffer->first = ringBuffer->last;
+    ringBuffer->numberOfBytes = 0;
+}

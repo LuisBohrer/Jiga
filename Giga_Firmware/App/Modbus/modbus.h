@@ -11,6 +11,7 @@
 // INCLUDES //
 
 #include "RingBuffer/ringBuffer.h"
+#include "gpio.h"
 
 // INCLUDES //
 
@@ -80,6 +81,9 @@ typedef enum enMODBUS_RegisterBytes{
 // STRUCTS //
 
 typedef struct {
+    GPIO_TypeDef *sendReceivePort;
+    uint16_t sendReceivePin;
+
     enMODBUS_ModbusStates_t ModbusState;
     ringBuffer_t SendCommandRingBuffer;
     uint8_t PayloadBuffer[MODBUS_BUFFER_SIZE];
@@ -106,7 +110,8 @@ typedef struct {
 
 // FUNCOES //
 
-void vMODBUS_Init(MODBUS_ModbusHandler_t *modbusHandler);
+void MODBUS_Init(MODBUS_ModbusHandler_t *modbusHandler,
+        GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin);
 void vMODBUS_Poll(MODBUS_ModbusHandler_t *modbusHandler);
 void vMODBUS_EnableModbus(void);
 void vMODBUS_DisableModbus(void);
