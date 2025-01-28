@@ -97,6 +97,12 @@ void Error_Handler(void);
 #define TXDBG_GPIO_Port GPIOA
 #define RXDBG_Pin GPIO_PIN_10
 #define RXDBG_GPIO_Port GPIOA
+#define E_RS485_Pin GPIO_PIN_3
+#define E_RS485_GPIO_Port GPIOB
+#define LIGA_RS485__Pin GPIO_PIN_4
+#define LIGA_RS485__GPIO_Port GPIOB
+#define LIGA_RS485_Pin GPIO_PIN_5
+#define LIGA_RS485_GPIO_Port GPIOB
 #define SCL_Pin GPIO_PIN_6
 #define SCL_GPIO_Port GPIOB
 #define SDA_Pin GPIO_PIN_7

@@ -53,12 +53,29 @@ void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(MCS_GPIO_Port, MCS_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, E_RS485_Pin|LIGA_RS485__Pin|LIGA_RS485_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : MCS_Pin */
   GPIO_InitStruct.Pin = MCS_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(MCS_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : E_RS485_Pin LIGA_RS485_Pin */
+  GPIO_InitStruct.Pin = E_RS485_Pin|LIGA_RS485_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LIGA_RS485__Pin */
+  GPIO_InitStruct.Pin = LIGA_RS485__Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LIGA_RS485__GPIO_Port, &GPIO_InitStruct);
 
 }
 

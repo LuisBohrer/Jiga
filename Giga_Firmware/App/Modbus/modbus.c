@@ -16,7 +16,6 @@
 static inline uint8_t sui8MODBUS_CheckCrc(MODBUS_ModbusHandler_t *ModbusHandler);
 static inline void svMODBUS_ResetHandler(MODBUS_ModbusHandler_t *modbusHandler);
 static void svMODBUS_ResetIndexes(MODBUS_ModbusHandler_t *modbusHandler);
-//static uint16_t suiMB_Calc_CRC(uint8_t *pucByte, uint16_t uiLength);
 static void svMODBUS_Handle_Response(MODBUS_ModbusHandler_t *modbusHandler);
 static void svMODBUS_SendByte(MODBUS_ModbusHandler_t *modbusHandler, uint8_t byte);
 static void svMODBUS_SendShort(MODBUS_ModbusHandler_t *modbusHandler, uint16_t shortValue);
@@ -317,32 +316,6 @@ static void svMODBUS_SendShort(MODBUS_ModbusHandler_t *modbusHandler, uint16_t s
     svMODBUS_SendByte(modbusHandler, shortValue >> 8);
     svMODBUS_SendByte(modbusHandler, shortValue);
 }
-
-//#define MB_CRC_POLYNOMIAL 0xA001
-//// Funcao base de calculo do CRC
-//static void svMB_CrcFunction(uint16_t *uiCrc, uint8_t ucData)
-//{
-//    register uint8_t i;
-//    *uiCrc ^= ucData;
-//    for (i = 0; i < 8; i++) {
-//        if (!(*uiCrc & 1))
-//            *uiCrc >>= 1;
-//        else {
-//            *uiCrc >>= 1;
-//            *uiCrc ^= MB_CRC_POLYNOMIAL;
-//        }
-//    }
-//}
-
-//static uint16_t suiMB_Calc_CRC(uint8_t *pucByte, uint16_t uiLength)
-//{
-//    uint16_t uiCRC = 0xFFFF; // Valor inicial de calculo do CRC
-//
-//    while (uiLength--) {
-//        svMB_CrcFunction(&uiCRC, *pucByte++);
-//    }
-//    return (uiCRC << 8) | (uiCRC >> 8);
-//}
 
 static inline uint8_t sui8MODBUS_CheckCrc(MODBUS_ModbusHandler_t *modbusHandler){
     modbusHandler->CalculatedCRC = (uint16_t) HAL_CRC_Calculate(&hcrc,
