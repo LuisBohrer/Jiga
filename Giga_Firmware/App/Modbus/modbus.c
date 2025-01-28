@@ -13,14 +13,14 @@
 
 // FUNÇOES ESTATICAS //
 
-static inline uint8_t MODBUS_CheckCrc(MODBUS_ModbusHandler_t *ModbusHandler);
-static inline void MODBUS_ResetHandler(MODBUS_ModbusHandler_t *modbusHandler);
-static void MODBUS_ResetIndexes(MODBUS_ModbusHandler_t *modbusHandler);
-static void MODBUS_HandleResponse(MODBUS_ModbusHandler_t *modbusHandler);
-static void MODBUS_SendByte(MODBUS_ModbusHandler_t *modbusHandler, uint8_t byte);
-static void MODBUS_SendShort(MODBUS_ModbusHandler_t *modbusHandler, uint16_t shortValue);
-static void MODBUS_TrataErro(MODBUS_ModbusHandler_t *modbusHandler, enMODBUS_Error_t error);
-static void MODBUS_SendCommand(MODBUS_ModbusHandler_t *modbusHandler);
+static inline uint8_t MODBUS_CheckCrc(modbusHandler_t *ModbusHandler);
+static inline void MODBUS_ResetHandler(modbusHandler_t *modbusHandler);
+static void MODBUS_ResetIndexes(modbusHandler_t *modbusHandler);
+static void MODBUS_HandleResponse(modbusHandler_t *modbusHandler);
+static void MODBUS_SendByte(modbusHandler_t *modbusHandler, uint8_t byte);
+static void MODBUS_SendShort(modbusHandler_t *modbusHandler, uint16_t shortValue);
+static void MODBUS_TrataErro(modbusHandler_t *modbusHandler, modbusError_t error);
+static void MODBUS_SendCommand(modbusHandler_t *modbusHandler);
 
 // FUNÇOES ESTATICAS //
 
@@ -38,36 +38,7 @@ ringBuffer_t *stRBModbusRbTx = NULL;
 
 // VARIAVEIS LOCAIS //
 
-// TODO -> modularizar o enable e disable
-//void vMODBUS_EnableModbus(){
-//    if(ui8ModbusEnabled)
-//        return;
-//
-//    HAL_GPIO_WritePin(LIGA_RS485_GPIO_Port, LIGA_RS485_Pin, GPIO_PIN_SET);
-//    HAL_GPIO_WritePin(LIGA_RS485__GPIO_Port, LIGA_RS485__Pin, GPIO_PIN_RESET);
-//
-//    while(ui8APP_EnableUartInterrupt(APP_GetUart(EN_UART_MODBUS)) != TRUE);
-//
-//    vRB_ClearBuffer(stRBModbusRbRx);
-//    vRB_ClearBuffer(stRBModbusRbTx);
-//
-//    ui8ModbusEnabled = TRUE;
-//}
-//
-//void vMODBUS_DisableModbus(){
-//    if(!ui8ModbusEnabled)
-//        return;
-//
-//    vAPP_DisableUartInterrupt(APP_GetUart(EN_UART_MODBUS));
-//
-//    HAL_GPIO_WritePin(LIGA_RS485_GPIO_Port, LIGA_RS485_Pin, GPIO_PIN_RESET);
-//    HAL_GPIO_WritePin(LIGA_RS485__GPIO_Port, LIGA_RS485__Pin, GPIO_PIN_SET);
-//
-//    ui8ModbusEnabled = FALSE;
-//}
-
-void MODBUS_Init(MODBUS_ModbusHandler_t *modbusHandler,
-        GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin){
+void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin){
     modbusHandler->sendReceivePort = sendReceivePort;
     modbusHandler->sendReceivePin = sendReceivePin;
 
@@ -92,7 +63,7 @@ void MODBUS_Init(MODBUS_ModbusHandler_t *modbusHandler,
     HAL_GPIO_WritePin(modbusHandler->sendReceivePort, modbusHandler->sendReceivePin, GPIO_PIN_RESET); // Receive
 }
 
-static void MODBUS_ResetHandler(MODBUS_ModbusHandler_t *modbusHandler){
+static void MODBUS_ResetHandler(modbusHandler_t *modbusHandler){
     modbusHandler->ModbusState = MODBUS_IDLE;
     modbusHandler->PayloadIndex = 0;
     modbusHandler->DeviceAddress = DEVICE_ADDRESS;
@@ -107,12 +78,12 @@ static void MODBUS_ResetHandler(MODBUS_ModbusHandler_t *modbusHandler){
     modbusHandler->timeout_100ms = 1; // Aguarda 100 ms antes de tentar de novo
 }
 
-static void MODBUS_ResetIndexes(MODBUS_ModbusHandler_t *modbusHandler){
+static void MODBUS_ResetIndexes(modbusHandler_t *modbusHandler){
     modbusHandler->PayloadIndex = 0;
     modbusHandler->DataIndex = 0;
 }
 
-void vMODBUS_Poll(MODBUS_ModbusHandler_t *modbusHandler){
+void vMODBUS_Poll(modbusHandler_t *modbusHandler){
     if(!ui8ModbusEnabled){
         return;
     }
@@ -173,7 +144,7 @@ void vMODBUS_Poll(MODBUS_ModbusHandler_t *modbusHandler){
     }
 }
 
-static void MODBUS_HandleResponse(MODBUS_ModbusHandler_t *modbusHandler){
+static void MODBUS_HandleResponse(modbusHandler_t *modbusHandler){
     if(!modbusHandler->timeout_100ms){
         MODBUS_TrataErro(modbusHandler, MODBUS_TIMEOUT);
         return;
@@ -303,17 +274,17 @@ static void MODBUS_HandleResponse(MODBUS_ModbusHandler_t *modbusHandler){
     }
 }
 
-static void MODBUS_SendByte(MODBUS_ModbusHandler_t *modbusHandler, uint8_t byte){
+static void MODBUS_SendByte(modbusHandler_t *modbusHandler, uint8_t byte){
     RB_PutByte(stRBModbusRbTx, byte);
     modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = byte;
 }
 
-static void MODBUS_SendShort(MODBUS_ModbusHandler_t *modbusHandler, uint16_t shortValue){
+static void MODBUS_SendShort(modbusHandler_t *modbusHandler, uint16_t shortValue){
     MODBUS_SendByte(modbusHandler, shortValue >> 8);
     MODBUS_SendByte(modbusHandler, shortValue);
 }
 
-static inline uint8_t MODBUS_CheckCrc(MODBUS_ModbusHandler_t *modbusHandler){
+static inline uint8_t MODBUS_CheckCrc(modbusHandler_t *modbusHandler){
     modbusHandler->CalculatedCRC = (uint16_t) HAL_CRC_Calculate(&hcrc,
             (uint32_t*)modbusHandler->PayloadBuffer,
             modbusHandler->PayloadIndex);
@@ -322,7 +293,7 @@ static inline uint8_t MODBUS_CheckCrc(MODBUS_ModbusHandler_t *modbusHandler){
     return (modbusHandler->CalculatedCRC == modbusHandler->ExpectedCRC);
 }
 
-static void MODBUS_TrataErro(MODBUS_ModbusHandler_t *modbusHandler, enMODBUS_Error_t error){
+static void MODBUS_TrataErro(modbusHandler_t *modbusHandler, modbusError_t error){
     static uint16_t ui16FailedRequests = 0;
     ui16FailedRequests++;
     uint8_t errorMessage[15];
@@ -332,7 +303,7 @@ static void MODBUS_TrataErro(MODBUS_ModbusHandler_t *modbusHandler, enMODBUS_Err
     RB_ClearBuffer(stRBModbusRbRx);
 }
 
-static void MODBUS_SendCommand(MODBUS_ModbusHandler_t *modbusHandler){
+static void MODBUS_SendCommand(modbusHandler_t *modbusHandler){
     if(RB_GetNumberOfBytes(&modbusHandler->SendCommandRingBuffer) < 6){
         MODBUS_TrataErro(modbusHandler, MODBUS_INVALID_MESSAGE);
         return;
@@ -413,7 +384,7 @@ static void MODBUS_SendCommand(MODBUS_ModbusHandler_t *modbusHandler){
     MODBUS_ResetIndexes(modbusHandler);
 }
 
-void vMODBUS_Read(MODBUS_ModbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, enMODBUS_RegisterBytes_t sizeOfRegistersBytes){
+void vMODBUS_Read(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, registerBytes_t sizeOfRegistersBytes){
     RB_PutByte(&modbusHandler->SendCommandRingBuffer, secondaryAddress);
     RB_PutByte(&modbusHandler->SendCommandRingBuffer, command);
     RB_PutByte(&modbusHandler->SendCommandRingBuffer, offset >> 8);
@@ -423,7 +394,7 @@ void vMODBUS_Read(MODBUS_ModbusHandler_t *modbusHandler, uint8_t secondaryAddres
     RB_PutByte(&modbusHandler->SendCommandRingBuffer, numberOfRegisters*sizeOfRegistersBytes);
 }
 
-void vMODBUS_Write(MODBUS_ModbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, enMODBUS_RegisterBytes_t sizeOfRegistersBytes, uint16_t* Parameters){
+void vMODBUS_Write(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, registerBytes_t sizeOfRegistersBytes, uint16_t* Parameters){
     RB_PutByte(&modbusHandler->SendCommandRingBuffer, secondaryAddress);
     RB_PutByte(&modbusHandler->SendCommandRingBuffer, command);
     RB_PutByte(&modbusHandler->SendCommandRingBuffer, offset >> 8);

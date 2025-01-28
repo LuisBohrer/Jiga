@@ -32,7 +32,7 @@ typedef enum enMODBUS_ModbusStates{
     MODBUS_SENDING,
     MODBUS_RECEIVING,
     MODBUS_PROCESS_MESSAGE,
-} enMODBUS_ModbusStates_t;
+} modbusStates_t;
 
 typedef enum enMODBUS_Opcodes{
     READ_COILS = 0x01,
@@ -54,7 +54,7 @@ typedef enum enMODBUS_Opcodes{
     READ_WRITE_MULTIPLE_REGISTER,
     READ_FIFO_QUEUE,
     ENCAPSULATED_INTERFACE_TRANSPORT = 0x2B
-} enMODBUS_Opcodes_t;
+} modbusOpcodes_t;
 
 typedef enum enMODBUS_Error{
     MODBUS_INVALID_OPCODE = 0,
@@ -67,13 +67,13 @@ typedef enum enMODBUS_Error{
     MODBUS_INCORRECT_QTT_REGISTERS,
     MODBUS_INCORRECT_CRC,
     MODBUS_INVALID_MESSAGE,
-} enMODBUS_Error_t;
+} modbusError_t;
 
 typedef enum enMODBUS_RegisterBytes{
     MODBUS_REGISTER_8_BITS = 1,
     MODBUS_REGISTER_16_BITS = 2,
     MODBUS_REGISTER_32_BITS = 4,
-} enMODBUS_RegisterBytes_t;
+} registerBytes_t;
 
 // ENUMS //
 
@@ -84,13 +84,13 @@ typedef struct {
     GPIO_TypeDef *sendReceivePort;
     uint16_t sendReceivePin;
 
-    enMODBUS_ModbusStates_t ModbusState;
+    modbusStates_t ModbusState;
     ringBuffer_t SendCommandRingBuffer;
     uint8_t PayloadBuffer[MODBUS_BUFFER_SIZE];
     uint8_t PayloadIndex;
     uint8_t DeviceAddress;
     uint8_t RequestId;
-    enMODBUS_Opcodes_t Opcode;
+    modbusOpcodes_t Opcode;
     uint16_t FirstRegister;
     uint16_t QttRegisters;
     uint8_t QttBytes;
@@ -103,20 +103,21 @@ typedef struct {
     uint32_t CalculatedCRC;
     uint32_t RegisterReads[MODBUS_MAX_REGISTER];
     uint32_t timeout_100ms;
-} MODBUS_ModbusHandler_t;
+} modbusHandler_t;
 
 // STRUCTS //
 
 
 // FUNCOES //
 
-void MODBUS_Init(MODBUS_ModbusHandler_t *modbusHandler,
-        GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin);
-void vMODBUS_Poll(MODBUS_ModbusHandler_t *modbusHandler);
-void vMODBUS_EnableModbus(void);
-void vMODBUS_DisableModbus(void);
-void vMODBUS_Read(MODBUS_ModbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, enMODBUS_RegisterBytes_t sizeOfRegistersBytes);
-void vMODBUS_Write(MODBUS_ModbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, uint8_t numberOfParameterBytes, uint16_t* Parameters);
+void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin);
+void vMODBUS_Poll(modbusHandler_t *modbusHandler);
+//void vMODBUS_EnableModbus(void);
+//void vMODBUS_DisableModbus(void);
+void vMODBUS_Read(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, registerBytes_t sizeOfRegistersBytes);
+void vMODBUS_Write(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, uint8_t numberOfParameterBytes, uint16_t* Parameters);
+void MODBUS_ReadSingleRegister(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress);
+void MODBUS_ReadMultipleRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes);
 
 // FUNCOES //
 

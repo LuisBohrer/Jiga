@@ -19,6 +19,8 @@
 #include <math.h>
 
 // ADC constants and buffers // [Section]
+#define NUMBER_OF_CHANNELS 10
+
 const float MIN_ADC_READ = 0;
 const float MAX_ADC_READ = 4095;
 const float MIN_VOLTAGE_READ = 0;
@@ -59,6 +61,7 @@ UART_HandleTypeDef *MODBUS_UART = &huart3;
 uint8_t modbusLastChar;
 ringBuffer_t modbusRb;
 string modbusLastMessage;
+uint8_t modbusEnabled;
 // Uart declarations and buffers //
 
 // Timer counters and periods // [Section]
@@ -77,6 +80,10 @@ static void APP_UpdateReads(void);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
 static void APP_TreatDebugMessage(void);
+static void APP_EnableModbus(void);
+static void APP_DisableModbus(void);
+static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart);
+static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
 // Static function declarations //
 
 // Application functions // [Section]
@@ -291,6 +298,51 @@ static void APP_SendLog(){
     }
 
     sendLogCounter_ms = 0;
+}
+
+static void APP_EnableModbus(){
+    if(modbusEnabled)
+        return;
+
+    HAL_GPIO_WritePin(LIGA_RS485_GPIO_Port, LIGA_RS485_Pin, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(LIGA_RS485__GPIO_Port, LIGA_RS485__Pin, GPIO_PIN_RESET);
+
+    while(APP_EnableUartInterrupt(MODBUS_UART) == 0);
+
+    RB_ClearBuffer(&modbusRb);
+//    RB_ClearBuffer(stRBModbusRbTx);
+
+    modbusEnabled = 1;
+}
+
+static void APP_DisableModbus(){
+    if(!modbusEnabled)
+        return;
+
+    APP_DisableUartInterrupt(MODBUS_UART);
+
+    HAL_GPIO_WritePin(LIGA_RS485_GPIO_Port, LIGA_RS485_Pin, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(LIGA_RS485__GPIO_Port, LIGA_RS485__Pin, GPIO_PIN_SET);
+
+    modbusEnabled = 0;
+}
+
+static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart){
+    HAL_UART_Abort_IT(huart);
+}
+
+static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart){
+    HAL_StatusTypeDef status;
+    if(huart == DISPLAY_UART){
+        status = HAL_UART_Receive_IT(huart, &displayLastChar, 1);
+    }
+    else if(huart == DEBUG_UART){
+        status = HAL_UART_Receive_IT(huart, &debugLastChar, 1);
+    }
+    else if(huart == MODBUS_UART){
+        status = HAL_UART_Receive_IT(huart, &modbusLastChar, 1);
+    }
+    return (status == HAL_OK) || (status == HAL_BUSY);
 }
 // Application functions //
 
