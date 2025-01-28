@@ -9,6 +9,7 @@
 #include "String/string.h"
 
 const string voltageTxtBx[10] = {
+        {"bxTensao0", 12},
         {"bxTensao1", 12},
         {"bxTensao2", 12},
         {"bxTensao3", 12},
@@ -17,11 +18,11 @@ const string voltageTxtBx[10] = {
         {"bxTensao6", 12},
         {"bxTensao7", 12},
         {"bxTensao8", 12},
-        {"bxTensao9", 12},
-        {"bxTensao10", 13}
+        {"bxTensao9", 12}
 };
 
 const string currentTxtBx[10] = {
+        {"bxCorrente0", 14},
         {"bxCorrente1", 14},
         {"bxCorrente2", 14},
         {"bxCorrente3", 14},
@@ -30,6 +31,5 @@ const string currentTxtBx[10] = {
         {"bxCorrente6", 14},
         {"bxCorrente7", 14},
         {"bxCorrente8", 14},
-        {"bxCorrente9", 14},
-        {"bxCorrente10", 15}
+        {"bxCorrente9", 14}
 };

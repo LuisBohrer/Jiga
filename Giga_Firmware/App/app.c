@@ -41,13 +41,11 @@ float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 
 // Uart declarations and buffers // [Section]
 UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
-//UART_HandleTypeDef *DISPLAY_UART = &huart1;
 uint8_t displayLastChar;
 ringBuffer_t displayRb;
 string displayLastMessage;
 
 UART_HandleTypeDef *DEBUG_UART = &huart1;
-//UART_HandleTypeDef *DEBUG_UART = &hlpuart1;
 uint8_t debugLastChar;
 ringBuffer_t debugRb;
 string debugLastMessage;
