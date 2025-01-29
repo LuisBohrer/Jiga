@@ -9,6 +9,7 @@
 #include "modbus.h"
 #include "RingBuffer/ringBuffer.h"
 #include "crc.h"
+#include "usart.h"
 
 
 // FUNÇOES ESTATICAS //
@@ -21,11 +22,14 @@ static void MODBUS_SendByte(modbusHandler_t *modbusHandler, uint8_t byte);
 static void MODBUS_SendShort(modbusHandler_t *modbusHandler, uint16_t shortValue);
 static void MODBUS_TrataErro(modbusHandler_t *modbusHandler, modbusError_t error);
 static void MODBUS_SendCommand(modbusHandler_t *modbusHandler);
+static void inline MODBUS_CalculateCrc(modbusHandler_t *modbusHandler);
 
 // FUNÇOES ESTATICAS //
 
 
 // VARIAVEIS LOCAIS //
+
+UART_HandleTypeDef *modbusUart;
 
 const uint8_t DEVICE_ADDRESS = 0; // relevante apenas se for slave
 
@@ -38,7 +42,8 @@ ringBuffer_t *stRBModbusRbTx = NULL;
 
 // VARIAVEIS LOCAIS //
 
-void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin){
+void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart){
+    modbusUart = huart;
     modbusHandler->sendReceivePort = sendReceivePort;
     modbusHandler->sendReceivePin = sendReceivePin;
 
@@ -284,6 +289,18 @@ static void MODBUS_SendShort(modbusHandler_t *modbusHandler, uint16_t shortValue
     MODBUS_SendByte(modbusHandler, shortValue);
 }
 
+static void MODBUS_SendLong(modbusHandler_t *modbusHandler, uint32_t longValue){
+    MODBUS_SendByte(modbusHandler, longValue >> 24);
+    MODBUS_SendByte(modbusHandler, longValue >> 16);
+    MODBUS_SendByte(modbusHandler, longValue >> 8);
+    MODBUS_SendByte(modbusHandler, longValue);
+}
+
+static inline void MODBUS_CalculateCrc(modbusHandler_t *modbusHandler){
+    modbusHandler->CalculatedCRC = (uint16_t) HAL_CRC_Calculate(&hcrc,
+            (uint32_t*)modbusHandler->PayloadBuffer, modbusHandler->PayloadIndex);
+}
+
 static inline uint8_t MODBUS_CheckCrc(modbusHandler_t *modbusHandler){
     modbusHandler->CalculatedCRC = (uint16_t) HAL_CRC_Calculate(&hcrc,
             (uint32_t*)modbusHandler->PayloadBuffer,
@@ -406,4 +423,98 @@ void vMODBUS_Write(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uin
         RB_PutByte(&modbusHandler->SendCommandRingBuffer,
                 Parameters[i/sizeOfRegistersBytes] >> (8*((sizeOfRegistersBytes - 1) - i%sizeOfRegistersBytes)));
     }
+}
+
+void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t coilAddress, uint16_t numberOfCoils){
+    MODBUS_ResetIndexes(modbusHandler);
+
+    MODBUS_SendByte(modbusHandler, secondaryAddress);
+    MODBUS_SendByte(modbusHandler, READ_COILS);
+    MODBUS_SendShort(modbusHandler, coilAddress);
+    MODBUS_SendShort(modbusHandler, numberOfCoils);
+
+    MODBUS_CalculateCrc(modbusHandler);
+    MODBUS_SendShort(modbusHandler, modbusHandler->CalculatedCRC);
+}
+
+void MODBUS_ReadInputRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress);
+
+void MODBUS_ReadHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters){
+    MODBUS_ResetIndexes(modbusHandler);
+
+    MODBUS_SendByte(modbusHandler, secondaryAddress);
+    MODBUS_SendByte(modbusHandler, READ_HOLDING_REGISTERS);
+    MODBUS_SendShort(modbusHandler, firstRegisterAddress);
+    MODBUS_SendShort(modbusHandler, numberOfRegisters);
+
+    MODBUS_CalculateCrc(modbusHandler);
+    MODBUS_SendShort(modbusHandler, modbusHandler->CalculatedCRC);
+}
+
+void MODBUS_WriteSingleCoil(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t coilAddress, uint8_t valueToWrite){
+    MODBUS_ResetIndexes(modbusHandler);
+
+    MODBUS_SendByte(modbusHandler, secondaryAddress);
+    MODBUS_SendByte(modbusHandler, WRITE_SINGLE_COIL);
+    MODBUS_SendShort(modbusHandler, coilAddress);
+    if(valueToWrite == 0){
+        MODBUS_SendShort(modbusHandler, 0x0000);
+    }
+    else{
+        MODBUS_SendShort(modbusHandler, 0xFF00);
+    }
+
+    MODBUS_CalculateCrc(modbusHandler);
+    MODBUS_SendShort(modbusHandler, modbusHandler->CalculatedCRC);
+}
+
+void MODBUS_WriteMultipleCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstCoilAddress, uint16_t numberOfCoils, uint8_t *valuesToWrite){
+    uint32_t numberOfBytesToWrite = numberOfCoils/8;
+    MODBUS_ResetIndexes(modbusHandler);
+
+    MODBUS_SendByte(modbusHandler, secondaryAddress);
+    MODBUS_SendByte(modbusHandler, WRITE_MULTIPLE_COILS);
+    MODBUS_SendShort(modbusHandler, firstCoilAddress);
+    MODBUS_SendShort(modbusHandler, numberOfCoils);
+    MODBUS_SendByte(modbusHandler, numberOfBytesToWrite);
+    for(uint32_t i = 0; i < numberOfBytesToWrite; i++){
+        MODBUS_SendByte(modbusHandler, valuesToWrite[i]);
+    }
+
+    MODBUS_CalculateCrc(modbusHandler);
+    MODBUS_SendShort(modbusHandler, modbusHandler->CalculatedCRC);
+}
+
+void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress, uint32_t valueToWrite, registerBytes_t sizeOfRegisterBytes){
+    MODBUS_ResetIndexes(modbusHandler);
+
+    MODBUS_SendByte(modbusHandler, secondaryAddress);
+    MODBUS_SendByte(modbusHandler, WRITE_SINGLE_HOLDING_REGISTER);
+    MODBUS_SendShort(modbusHandler, registerAddress);
+    if(sizeOfRegisterBytes == MODBUS_REGISTER_16_BITS){
+        MODBUS_SendShort(modbusHandler, valueToWrite);
+    }
+    else if(sizeOfRegisterBytes == MODBUS_REGISTER_32_BITS){
+        MODBUS_SendLong(modbusHandler, valueToWrite);
+    }
+
+    MODBUS_CalculateCrc(modbusHandler);
+    MODBUS_SendShort(modbusHandler, modbusHandler->CalculatedCRC);
+}
+
+void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes, uint8_t* valuesToWrite){
+    uint32_t numberOfBytesToWrite = numberOfRegisters*((uint8_t)sizeOfRegisterBytes);
+    MODBUS_ResetIndexes(modbusHandler);
+
+    MODBUS_SendByte(modbusHandler, secondaryAddress);
+    MODBUS_SendByte(modbusHandler, WRITE_MULTIPLE_HOLDING_REGISTERS);
+    MODBUS_SendShort(modbusHandler, firstRegisterAddress);
+    MODBUS_SendShort(modbusHandler, numberOfRegisters);
+    MODBUS_SendByte(modbusHandler, numberOfBytesToWrite);
+    for(uint32_t i = 0; i < numberOfBytesToWrite; i++){
+        MODBUS_SendByte(modbusHandler, valuesToWrite[i]);
+    }
+
+    MODBUS_CalculateCrc(modbusHandler);
+    MODBUS_SendShort(modbusHandler, modbusHandler->CalculatedCRC);
 }

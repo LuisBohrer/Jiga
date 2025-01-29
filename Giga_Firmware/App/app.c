@@ -12,6 +12,7 @@
 #include "Utils/utils.h"
 #include "RingBuffer/ringBuffer.h"
 #include "Comm/comm.h"
+#include "Modbus/modbus.h"
 #include "adc.h"
 #include "usart.h"
 #include "tim.h"
@@ -64,6 +65,10 @@ string modbusLastMessage;
 uint8_t modbusEnabled;
 // Uart declarations and buffers //
 
+// Modbus declarations // [Section]
+modbusHandler_t modbusHandler;
+// Modbus declarations //
+
 // Timer counters and periods // [Section]
 volatile uint32_t updateReadsCounter_ms = 0;
 const uint32_t UPDATE_READS_PERIOD_MS = 1;
@@ -89,7 +94,6 @@ static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
 // Application functions // [Section]
 uint8_t appStarted = 0;
 void APP_init(){
-
     NEXTION_Begin(DISPLAY_UART);
     COMM_Begin(DEBUG_UART);
 
@@ -97,6 +101,9 @@ void APP_init(){
 
     APP_InitUarts();
     APP_InitTimers();
+
+    MODBUS_Init(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART);
+    APP_EnableModbus();
 
     appStarted = 1;
 }
@@ -165,7 +172,7 @@ static void APP_UpdateReads(){
         switch(reading){
             case READ_VOLTAGE:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    uint16_t integerSpaces = 4;
+                    uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
                     uint16_t decimalSpaces = 0;
                     convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
