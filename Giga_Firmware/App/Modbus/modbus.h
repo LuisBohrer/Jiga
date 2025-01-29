@@ -75,6 +75,11 @@ typedef enum enMODBUS_RegisterBytes{
     MODBUS_REGISTER_32_BITS = 4,
 } registerBytes_t;
 
+typedef enum{
+    MODBUS_SET_RECEIVE = 0,
+    MODBUS_SET_SEND
+} sendOrReceive_t;
+
 // ENUMS //
 
 
@@ -114,6 +119,7 @@ void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, 
 void vMODBUS_Poll(modbusHandler_t *modbusHandler);
 //void vMODBUS_EnableModbus(void);
 //void vMODBUS_DisableModbus(void);
+void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendOrReceive);
 void vMODBUS_Read(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, registerBytes_t sizeOfRegistersBytes);
 void vMODBUS_Write(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, uint8_t numberOfParameterBytes, uint16_t* parameters);
 void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t coilAddress, uint16_t numberOfCoils);
