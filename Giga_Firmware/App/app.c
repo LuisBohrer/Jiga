@@ -102,7 +102,7 @@ void APP_init(){
     APP_InitUarts();
     APP_InitTimers();
 
-    MODBUS_Init(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART);
+    MODBUS_Init(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, 19200);
     APP_EnableModbus();
 
     appStarted = 1;

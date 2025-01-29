@@ -32,6 +32,7 @@ typedef enum enMODBUS_ModbusStates{
     MODBUS_SENDING,
     MODBUS_RECEIVING,
     MODBUS_PROCESS_MESSAGE,
+    MODBUS_READY,
 } modbusStates_t;
 
 typedef enum enMODBUS_Opcodes{
@@ -57,7 +58,8 @@ typedef enum enMODBUS_Opcodes{
 } modbusOpcodes_t;
 
 typedef enum enMODBUS_Error{
-    MODBUS_INVALID_OPCODE = 0,
+    MODBUS_NO_ERROR = 0,
+    MODBUS_INVALID_OPCODE,
     MODBUS_RESPONSE_ERROR,
     MODBUS_INVALID_REGISTER_ADDRESS,
     MODBUS_TIMEOUT,
@@ -88,6 +90,8 @@ typedef enum{
 typedef struct {
     GPIO_TypeDef *sendReceivePort;
     uint16_t sendReceivePin;
+    uint32_t baudRate;
+    uint8_t timeBetweenMessages_ms;
 
     modbusStates_t ModbusState;
     ringBuffer_t SendCommandRingBuffer;
@@ -115,11 +119,11 @@ typedef struct {
 
 // FUNCOES //
 
-void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart);
+void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart, uint32_t baudRate);
 void vMODBUS_Poll(modbusHandler_t *modbusHandler);
-//void vMODBUS_EnableModbus(void);
-//void vMODBUS_DisableModbus(void);
 void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendOrReceive);
+modbusError_t MODBUS_VerifyMessage(uint8_t expectedSecondaryAddress, uint8_t expectedOpcode, uint16_t expectedFirstAdress, uint16_t expectedNumberOfData, uint8_t *messageBuffer, uint32_t messageLength);
+modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer, uint32_t messageLength);
 void vMODBUS_Read(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, registerBytes_t sizeOfRegistersBytes);
 void vMODBUS_Write(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, uint8_t numberOfParameterBytes, uint16_t* parameters);
 void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t coilAddress, uint16_t numberOfCoils);

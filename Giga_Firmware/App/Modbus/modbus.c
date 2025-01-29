@@ -6,6 +6,7 @@
  */
 
 #include <stdio.h>
+#include <math.h>
 #include "modbus.h"
 #include "RingBuffer/ringBuffer.h"
 #include "crc.h"
@@ -43,8 +44,11 @@ ringBuffer_t *stRBModbusRbTx = NULL;
 
 // VARIAVEIS LOCAIS //
 
-void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart){
+void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart, uint32_t baudRate){
     modbusUart = huart;
+    modbusHandler->baudRate = baudRate;
+    modbusHandler->timeBetweenMessages_ms = ceil(1000*3.5*10/baudRate);
+
     modbusHandler->sendReceivePort = sendReceivePort;
     modbusHandler->sendReceivePin = sendReceivePin;
 
@@ -66,7 +70,7 @@ void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, 
 //    stRBModbusRbRx = vAPP_GetUartRbRx(EN_UART_MODBUS);
 //    stRBModbusRbTx = vAPP_GetUartRbTx(EN_UART_MODBUS);
 
-    HAL_GPIO_WritePin(modbusHandler->sendReceivePort, modbusHandler->sendReceivePin, GPIO_PIN_RESET); // Receive
+    MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
 }
 
 static void MODBUS_ResetHandler(modbusHandler_t *modbusHandler){
@@ -281,7 +285,8 @@ static void MODBUS_HandleResponse(modbusHandler_t *modbusHandler){
 }
 
 static void MODBUS_SendByte(modbusHandler_t *modbusHandler, uint8_t byte){
-    RB_PutByte(stRBModbusRbTx, byte);
+//    RB_PutByte(stRBModbusRbTx, byte);
+    HAL_UART_Transmit(modbusUart, &byte, 1, 100); // talvez tenha problema com o &byte [TEST]
     modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = byte;
 }
 
@@ -410,6 +415,58 @@ void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendO
     else{
         modbusHandler->ModbusState = MODBUS_SENDING;
     }
+}
+
+modbusError_t MODBUS_VerifyMessage(uint8_t expectedSecondaryAddress, uint8_t expectedOpcode, uint16_t expectedFirstAdress, uint16_t expectedNumberOfData, uint8_t *messageBuffer, uint32_t messageLength){
+    if(messageLength < 6){
+        return MODBUS_INVALID_MESSAGE;
+    }
+    if(expectedSecondaryAddress != messageBuffer[0]){
+        return MODBUS_INCORRECT_ID;
+    }
+    if(expectedOpcode == (messageBuffer[1] - 0x80)){
+        return MODBUS_RESPONSE_ERROR;
+    }
+    if(expectedOpcode != messageBuffer[1]){
+        return MODBUS_INCORRECT_OPCODE;
+    }
+    if(expectedFirstAdress != ((messageBuffer[2] << 8) | messageBuffer[3])){
+        return MODBUS_INCORRECT_FIRST_REGISTER;
+    }
+    if(expectedNumberOfData != ((messageBuffer[4] << 8) | messageBuffer[5])){
+        return MODBUS_INCORRECT_QTT_REGISTERS;
+    }
+    uint16_t calculatedCrc = HAL_CRC_Calculate(&hcrc, (uint32_t*) messageBuffer, messageLength - 2);
+    if(calculatedCrc != ((messageBuffer[messageLength - 2] << 8) | messageBuffer[messageLength - 1])){
+        return MODBUS_INCORRECT_CRC;
+    }
+    return MODBUS_NO_ERROR;
+}
+
+modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer, uint32_t messageLength){
+    if(messageLength < 6){
+        return MODBUS_INVALID_MESSAGE;
+    }
+    if(modbusHandler->RequestId != messageBuffer[0]){
+        return MODBUS_INCORRECT_ID;
+    }
+    if(modbusHandler->Opcode == (messageBuffer[1] - 0x80)){
+        return MODBUS_RESPONSE_ERROR;
+    }
+    if(modbusHandler->Opcode != messageBuffer[1]){
+        return MODBUS_INCORRECT_OPCODE;
+    }
+    if(modbusHandler->FirstRegister != ((messageBuffer[2] << 8) | messageBuffer[3])){
+        return MODBUS_INCORRECT_FIRST_REGISTER;
+    }
+    if(modbusHandler->QttRegisters != ((messageBuffer[4] << 8) | messageBuffer[5])){
+        return MODBUS_INCORRECT_QTT_REGISTERS;
+    }
+    uint16_t calculatedCrc = HAL_CRC_Calculate(&hcrc, (uint32_t*) messageBuffer, messageLength - 2);
+    if(calculatedCrc != ((messageBuffer[messageLength - 2] << 8) | messageBuffer[messageLength - 1])){
+        return MODBUS_INCORRECT_CRC;
+    }
+    return MODBUS_NO_ERROR;
 }
 
 void vMODBUS_Read(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, registerBytes_t sizeOfRegistersBytes){
