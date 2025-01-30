@@ -90,8 +90,6 @@ typedef enum{
 typedef struct {
     GPIO_TypeDef *sendReceivePort;
     uint16_t sendReceivePin;
-    uint32_t baudRate;
-    uint8_t timeBetweenMessages_ms;
 
     modbusStates_t ModbusState;
     ringBuffer_t SendCommandRingBuffer;
@@ -119,11 +117,12 @@ typedef struct {
 
 // FUNCOES //
 
-void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart, uint32_t baudRate);
+void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart);
 void vMODBUS_Poll(modbusHandler_t *modbusHandler);
 void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendOrReceive);
 modbusError_t MODBUS_VerifyMessage(uint8_t expectedSecondaryAddress, uint8_t expectedOpcode, uint16_t expectedFirstAdress, uint16_t expectedNumberOfData, uint8_t *messageBuffer, uint32_t messageLength);
 modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer, uint32_t messageLength);
+modbusError_t MODBUS_VerifyCrc(uint8_t *message, uint32_t length);
 void vMODBUS_Read(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, registerBytes_t sizeOfRegistersBytes);
 void vMODBUS_Write(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint8_t command, uint16_t offset, uint16_t numberOfRegisters, uint8_t numberOfParameterBytes, uint16_t* parameters);
 void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t coilAddress, uint16_t numberOfCoils);

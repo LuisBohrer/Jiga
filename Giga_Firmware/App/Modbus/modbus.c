@@ -18,11 +18,9 @@
 static inline uint8_t MODBUS_CheckCrc(modbusHandler_t *ModbusHandler);
 static inline void MODBUS_ResetHandler(modbusHandler_t *modbusHandler);
 static void MODBUS_ResetIndexes(modbusHandler_t *modbusHandler);
-static void MODBUS_HandleResponse(modbusHandler_t *modbusHandler);
 static void MODBUS_SendByte(modbusHandler_t *modbusHandler, uint8_t byte);
 static void MODBUS_SendShort(modbusHandler_t *modbusHandler, uint16_t shortValue);
 static void MODBUS_SendLong(modbusHandler_t *modbusHandler, uint32_t longValue);
-static void MODBUS_TrataErro(modbusHandler_t *modbusHandler, modbusError_t error);
 static void MODBUS_SendCommand(modbusHandler_t *modbusHandler);
 static void inline MODBUS_CalculateCrc(modbusHandler_t *modbusHandler);
 
@@ -44,10 +42,8 @@ ringBuffer_t *stRBModbusRbTx = NULL;
 
 // VARIAVEIS LOCAIS //
 
-void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart, uint32_t baudRate){
+void MODBUS_Init(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort, uint16_t sendReceivePin, UART_HandleTypeDef *huart){
     modbusUart = huart;
-    modbusHandler->baudRate = baudRate;
-    modbusHandler->timeBetweenMessages_ms = ceil(1000*3.5*10/baudRate);
 
     modbusHandler->sendReceivePort = sendReceivePort;
     modbusHandler->sendReceivePin = sendReceivePin;
@@ -121,7 +117,7 @@ void vMODBUS_Poll(modbusHandler_t *modbusHandler){
         case MODBUS_RECEIVING:
             HAL_GPIO_WritePin(E_RS485_GPIO_Port, E_RS485_Pin, GPIO_PIN_RESET); // Receive
 
-            MODBUS_HandleResponse(modbusHandler);
+//            MODBUS_HandleResponse(modbusHandler);
             break;
 
         case MODBUS_PROCESS_MESSAGE:
@@ -140,7 +136,7 @@ void vMODBUS_Poll(modbusHandler_t *modbusHandler){
                     break;
 
                 default:
-                    MODBUS_TrataErro(modbusHandler, MODBUS_INVALID_OPCODE);
+//                    MODBUS_TrataErro(modbusHandler, MODBUS_INVALID_OPCODE);
                     break;
             }
 
@@ -151,136 +147,6 @@ void vMODBUS_Poll(modbusHandler_t *modbusHandler){
         default:
             MODBUS_ResetHandler(modbusHandler);
             break;
-    }
-}
-
-static void MODBUS_HandleResponse(modbusHandler_t *modbusHandler){
-    if(!modbusHandler->timeout_100ms){
-        MODBUS_TrataErro(modbusHandler, MODBUS_TIMEOUT);
-        return;
-    }
-
-    while(!RB_IsEmpty(stRBModbusRbRx)){
-        modbusHandler->timeout_100ms = 5; // da mais 500 ms para outro byte chegar
-
-        uint8_t ui8IncomingByte = RB_GetByte(stRBModbusRbRx);
-
-        static uint8_t dataComplete = 0;
-        if(modbusHandler->PayloadIndex <= 0){
-            if(ui8IncomingByte != modbusHandler->RequestId){
-                MODBUS_TrataErro(modbusHandler, MODBUS_INCORRECT_ID);
-                return;
-            }
-
-            dataComplete = 0;
-
-            modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = ui8IncomingByte;
-//            modbusHandler->DeviceAddress = ui8IncomingByte;
-            continue;
-        }
-
-        if(modbusHandler->PayloadIndex <= 1){
-            if(ui8IncomingByte != modbusHandler->Opcode){
-                if(ui8IncomingByte == modbusHandler->Opcode + 0x80)
-                    MODBUS_TrataErro(modbusHandler, MODBUS_RESPONSE_ERROR);
-                else
-                    MODBUS_TrataErro(modbusHandler, MODBUS_INCORRECT_OPCODE);
-                return;
-            }
-            modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = ui8IncomingByte;
-            continue;
-        }
-
-        switch(modbusHandler->Opcode){
-            case READ_HOLDING_REGISTERS:
-                if(modbusHandler->PayloadIndex <= 2){
-                    modbusHandler->DataSize = ui8IncomingByte;
-                    modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = ui8IncomingByte;
-                    break;
-                }
-
-                if(modbusHandler->DataIndex < modbusHandler->DataSize){
-                    modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = ui8IncomingByte;
-                    modbusHandler->DataBuffer[modbusHandler->DataIndex++] = ui8IncomingByte;
-                    if(modbusHandler->DataIndex % modbusHandler->registerSize == 0){
-                        modbusHandler->RegisterReads[(modbusHandler->DataIndex / modbusHandler->registerSize) - 1] = 0;
-                        for(uint8_t i = 0; i < modbusHandler->registerSize; i++){
-                            modbusHandler->RegisterReads[(modbusHandler->DataIndex / modbusHandler->registerSize) - 1] <<= 8;
-                            modbusHandler->RegisterReads[(modbusHandler->DataIndex / modbusHandler->registerSize) - 1] |= modbusHandler->DataBuffer[modbusHandler->DataIndex - modbusHandler->registerSize + i];
-                        }
-                    }
-                    break;
-                }
-
-                dataComplete = 1;
-                break;
-
-            case WRITE_MULTIPLE_HOLDING_REGISTERS:
-                if(modbusHandler->PayloadIndex <= 2){
-                    if(ui8IncomingByte != (modbusHandler->FirstRegister >> 8)){
-                        MODBUS_TrataErro(modbusHandler, MODBUS_INCORRECT_FIRST_REGISTER);
-                        return;
-                    }
-                    modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = ui8IncomingByte;
-                    break;
-                }
-
-                if(modbusHandler->PayloadIndex <= 3){
-                    if(ui8IncomingByte != (modbusHandler->FirstRegister & 0xFF)){
-                        MODBUS_TrataErro(modbusHandler, MODBUS_INCORRECT_FIRST_REGISTER);
-                        return;
-                    }
-                    modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = ui8IncomingByte;
-                    break;
-                }
-
-                if(modbusHandler->PayloadIndex <= 4){
-                    if(ui8IncomingByte != (modbusHandler->QttRegisters >> 8)){
-                        MODBUS_TrataErro(modbusHandler, MODBUS_INCORRECT_QTT_REGISTERS);
-                        return;
-                    }
-                    modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = ui8IncomingByte;
-                    break;
-                }
-
-                if(modbusHandler->PayloadIndex <= 5){
-                    if(ui8IncomingByte != (modbusHandler->QttRegisters & 0xFF)){
-                        MODBUS_TrataErro(modbusHandler, MODBUS_INCORRECT_QTT_REGISTERS);
-                        return;
-                    }
-                    modbusHandler->PayloadBuffer[modbusHandler->PayloadIndex++] = ui8IncomingByte;
-                    break;
-                }
-
-                dataComplete = 1;
-                break;
-
-            default:
-                MODBUS_TrataErro(modbusHandler, MODBUS_INVALID_OPCODE);
-                return;
-        }
-        if(!dataComplete)
-            continue;
-
-        static uint8_t ui8CrcFirstByteReceived = 0;
-        if(!ui8CrcFirstByteReceived){
-            modbusHandler->ExpectedCRC = ui8IncomingByte << 8; // Usando big endian
-            ui8CrcFirstByteReceived = 1;
-            continue;
-        }
-        else
-            ui8CrcFirstByteReceived = 0;
-
-        modbusHandler->ExpectedCRC |= (ui8IncomingByte); // Usando big endian
-
-        if(MODBUS_CheckCrc(modbusHandler)){
-            modbusHandler->ModbusState = MODBUS_PROCESS_MESSAGE;
-            MODBUS_ResetIndexes(modbusHandler);
-        }
-        else{
-            MODBUS_TrataErro(modbusHandler, MODBUS_INCORRECT_CRC);
-            return;
-        }
     }
 }
 
@@ -316,19 +182,9 @@ static inline uint8_t MODBUS_CheckCrc(modbusHandler_t *modbusHandler){
     return (modbusHandler->CalculatedCRC == modbusHandler->ExpectedCRC);
 }
 
-static void MODBUS_TrataErro(modbusHandler_t *modbusHandler, modbusError_t error){
-    static uint16_t ui16FailedRequests = 0;
-    ui16FailedRequests++;
-    uint8_t errorMessage[15];
-    int messageLength = sprintf((char*) errorMessage, "Erro: %d\n", error);
-    MODBUS_ResetHandler(modbusHandler);
-    RB_ClearBuffer(stRBModbusRbTx);
-    RB_ClearBuffer(stRBModbusRbRx);
-}
-
 static void MODBUS_SendCommand(modbusHandler_t *modbusHandler){
     if(RB_GetNumberOfBytes(&modbusHandler->SendCommandRingBuffer) < 6){
-        MODBUS_TrataErro(modbusHandler, MODBUS_INVALID_MESSAGE);
+//        MODBUS_TrataErro(modbusHandler, MODBUS_INVALID_MESSAGE);
         return;
     }
 
@@ -391,7 +247,7 @@ static void MODBUS_SendCommand(modbusHandler_t *modbusHandler){
             break;
 
         default:
-            MODBUS_TrataErro(modbusHandler, MODBUS_INVALID_OPCODE);
+//            MODBUS_TrataErro(modbusHandler, MODBUS_INVALID_OPCODE);
             return;
     }
 
@@ -464,6 +320,16 @@ modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *
     }
     uint16_t calculatedCrc = HAL_CRC_Calculate(&hcrc, (uint32_t*) messageBuffer, messageLength - 2);
     if(calculatedCrc != ((messageBuffer[messageLength - 2] << 8) | messageBuffer[messageLength - 1])){
+        return MODBUS_INCORRECT_CRC;
+    }
+    return MODBUS_NO_ERROR;
+}
+
+modbusError_t MODBUS_VerifyCrc(uint8_t *message, uint32_t length){
+    if(length < 6){
+        return MODBUS_INVALID_MESSAGE;
+    }
+    if(HAL_CRC_Calculate(&hcrc, (uint32_t*) message, length - 2) != ((message[length - 2] << 8) | message[length - 1] )){
         return MODBUS_INCORRECT_CRC;
     }
     return MODBUS_NO_ERROR;

@@ -48,6 +48,25 @@ const uint16_t NUMBER_OF_DIGITS_IN_BOX = 4;
 // Display constants //
 
 // Uart declarations and buffers // [Section]
+typedef enum{
+    BAUD_RATE_9600 = 0,
+    BAUD_RATE_19200,
+    BAUD_RATE_115200,
+} uartBaudRate_t;
+
+typedef enum {
+    STOP_BITS_0_5 = 0,
+    STOP_BITS_1,
+    STOP_BITS_1_5,
+    STOP_BITS_2,
+} uartStopBits_t;
+
+typedef enum {
+    PARITY_NONE = 0,
+    PARITY_EVEN,
+    PARITY_ODD,
+} uartParity_t;
+
 UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
 uint8_t displayLastChar;
 ringBuffer_t displayRb;
@@ -66,6 +85,7 @@ uint8_t modbusEnabled;
 // Uart declarations and buffers //
 
 // Modbus declarations // [Section]
+const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500;
 modbusHandler_t modbusHandler;
 // Modbus declarations //
 
@@ -75,6 +95,8 @@ const uint32_t UPDATE_READS_PERIOD_MS = 1;
 
 volatile uint32_t sendLogCounter_ms = 0;
 const uint32_t SEND_LOG_PERIOD_MS = 1000;
+
+volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 // Timer counters and periods //
 
 // Static function declarations // [Section]
@@ -85,10 +107,12 @@ static void APP_UpdateReads(void);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
 static void APP_TreatDebugMessage(void);
+static void APP_TreatModbusMessage(void);
 static void APP_EnableModbus(void);
 static void APP_DisableModbus(void);
 static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart);
 static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
+static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer, uartBaudRate_t baudRate, uartStopBits_t stopBits, uartParity_t parity);
 // Static function declarations //
 
 // Application functions // [Section]
@@ -102,7 +126,7 @@ void APP_init(){
     APP_InitUarts();
     APP_InitTimers();
 
-    MODBUS_Init(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, 19200);
+    MODBUS_Init(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART);
     APP_EnableModbus();
 
     appStarted = 1;
@@ -113,12 +137,16 @@ void APP_poll(){
         return;
 
     APP_UpdateReads();
+
     APP_TreatDisplayMessage();
     APP_TreatDebugMessage();
+    APP_TreatModbusMessage();
 
     UTILS_CpuSleep();
 }
+// Application functions //
 
+// Init functions // [Section]
 static void APP_InitUarts(){
     HAL_StatusTypeDef status;
     do{
@@ -155,7 +183,9 @@ static void APP_StartAdcReadDma(reading_t typeOfRead){
     } while(status != HAL_OK);
     reading = typeOfRead;
 }
+// Init functions //
 
+// Adc reading functions // [Section]
 static void APP_UpdateReads(){
     if(!appStarted)
         return;
@@ -213,7 +243,9 @@ static void APP_UpdateReads(){
         updateReadsCounter_ms = 0;
     }
 }
+// Adc reading functions //
 
+// Message treatment functions // [Section]
 static void APP_TreatDisplayMessage(){
     while(!RB_IsEmpty(&displayRb)){
         STRING_AddChar(&displayLastMessage, RB_GetByte(&displayRb));
@@ -268,6 +300,11 @@ static void APP_TreatDebugMessage(){
 
             case SET_MODBUS_CONFIG:
                 COMM_SendAck(ACK_MODBUS_CONFIG);
+                APP_UpdateUartConfigs(MODBUS_UART,
+                        &modbusLastChar,
+                        STRING_GetChar(&debugLastMessage, 3),
+                        STRING_GetChar(&debugLastMessage, 4),
+                        STRING_GetChar(&debugLastMessage, 5));
                 break;
 
             case CHANGE_SCALE:
@@ -288,6 +325,101 @@ static void APP_TreatDebugMessage(){
     STRING_Clear(&debugLastMessage);
 }
 
+static void APP_TreatModbusMessage(){
+    if(!modbusEnabled)
+        return;
+    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS &&
+            STRING_GetLength(&modbusLastMessage) > 0){
+        STRING_Clear(&modbusLastMessage);
+        return;
+    }
+
+    while(!RB_IsEmpty(&modbusRb)){
+        STRING_AddChar(&modbusLastMessage, modbusLastChar);
+    }
+
+    if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
+            == MODBUS_NO_ERROR){
+        STRING_Clear(&modbusLastMessage);
+    }
+}
+// Message treatment functions //
+
+// Uart handling functions // [Section]
+static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart){
+    HAL_UART_Abort_IT(huart);
+}
+
+static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart){
+    HAL_StatusTypeDef status;
+    if(huart == DISPLAY_UART){
+        status = HAL_UART_Receive_IT(huart, &displayLastChar, 1);
+    }
+    else if(huart == DEBUG_UART){
+        status = HAL_UART_Receive_IT(huart, &debugLastChar, 1);
+    }
+    else if(huart == MODBUS_UART){
+        status = HAL_UART_Receive_IT(huart, &modbusLastChar, 1);
+    }
+    return (status == HAL_OK) || (status == HAL_BUSY);
+}
+
+static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer, uartBaudRate_t baudRate, uartStopBits_t stopBits, uartParity_t parity){
+    HAL_UART_Abort_IT(huart);
+    HAL_UART_DeInit(huart); // se começar a dar problema, copiar da coletora
+
+    switch(baudRate){
+        case BAUD_RATE_9600:
+            huart->Init.BaudRate = 9600;
+            break;
+        case BAUD_RATE_19200:
+            huart->Init.BaudRate = 19200;
+            break;
+        case BAUD_RATE_115200:
+            huart->Init.BaudRate = 115200;
+            break;
+    }
+
+    switch(stopBits){
+        case STOP_BITS_0_5:
+            huart->Init.StopBits = UART_STOPBITS_0_5;
+            break;
+        case STOP_BITS_1:
+            huart->Init.StopBits = UART_STOPBITS_1;
+            break;
+        case STOP_BITS_1_5:
+            huart->Init.StopBits = UART_STOPBITS_1_5;
+            break;
+        case STOP_BITS_2:
+            huart->Init.StopBits = UART_STOPBITS_2;
+            break;
+    }
+
+    switch(parity){
+        case PARITY_NONE:
+            huart->Init.Parity = UART_PARITY_NONE;
+            huart->Init.WordLength = UART_WORDLENGTH_8B;
+            break;
+        case PARITY_EVEN:
+            huart->Init.Parity = UART_PARITY_EVEN;
+            huart->Init.WordLength = UART_WORDLENGTH_9B; // O wordlength considera o bit de paridade
+            break;
+        case PARITY_ODD:
+            huart->Init.Parity = UART_PARITY_ODD;
+            huart->Init.WordLength = UART_WORDLENGTH_9B; // O wordlength considera o bit de paridade
+            break;
+    }
+
+    if (HAL_UART_Init(huart) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    HAL_UART_Receive_IT(huart, uartBuffer, 1);
+}
+// Uart handling functions //
+
+// Specific utility functions // [Section]
 static void APP_SendLog(){
     string logMessage;
 
@@ -317,7 +449,6 @@ static void APP_EnableModbus(){
     while(APP_EnableUartInterrupt(MODBUS_UART) == 0);
 
     RB_ClearBuffer(&modbusRb);
-//    RB_ClearBuffer(stRBModbusRbTx);
 
     modbusEnabled = 1;
 }
@@ -333,25 +464,7 @@ static void APP_DisableModbus(){
 
     modbusEnabled = 0;
 }
-
-static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart){
-    HAL_UART_Abort_IT(huart);
-}
-
-static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart){
-    HAL_StatusTypeDef status;
-    if(huart == DISPLAY_UART){
-        status = HAL_UART_Receive_IT(huart, &displayLastChar, 1);
-    }
-    else if(huart == DEBUG_UART){
-        status = HAL_UART_Receive_IT(huart, &debugLastChar, 1);
-    }
-    else if(huart == MODBUS_UART){
-        status = HAL_UART_Receive_IT(huart, &modbusLastChar, 1);
-    }
-    return (status == HAL_OK) || (status == HAL_BUSY);
-}
-// Application functions //
+// Specific utility functions //
 
 // Callbacks // [Section]
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
@@ -379,6 +492,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
     }
 
     else if(huart == MODBUS_UART){
+        modbusTimeBetweenByteCounter_ms = 0;
         RB_PutByte(&modbusRb, modbusLastChar);
         do{
             status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
@@ -396,6 +510,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
             updateReadsCounter_ms++;
         if(sendLogCounter_ms < SEND_LOG_PERIOD_MS)
             sendLogCounter_ms++;
+        if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS)
+            modbusTimeBetweenByteCounter_ms++;
     }
 }
 // Callbacks //
