@@ -65,6 +65,54 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 #
 
 <details>
+  
+<summary>
+  
+## Modbus
+
+</summary>
+
+Faz a comunicação por modbus. Trata do envio e verificação de mensagens.
+
+### Enums
+
+Referência: [embarcados.com.br/protocolo-modbus/](https://embarcados.com.br/protocolo-modbus/)
+| Nome | Constantes | Descrição |
+|---|---|---|
+| `modbusStates_t` | <ul><li>`MODBUS_STARTING` = 0 <li>`MODBUS_IDLE` <li>`MODBUS_SENDING` <li>`MODBUS_RECEIVING` | Estados do modbus |
+| `modbusOpcodes_t` | <ul><li>`READ_COILS` = 0x01  <li>`READ_DISCRETE_INPUTS`  <li>`READ_HOLDING_REGISTERS`  <li>`READ_INPUT_REGISTERS`  <li>`WRITE_SINGLE_COIL`  <li>`WRITE_SINGLE_HOLDING_REGISTER`  <li>`READ_EXCEPTION_STATUS`  <li>`DIAGNOSTICS`  <li>`GET_COMM_EVENT_COUNTER` = 0x0B  <li>`GET_COMM_EVENT_LOG`  <li>`WRITE_MULTIPLE_COILS` = 0x0F  <li>`WRITE_MULTIPLE_HOLDING_REGISTERS`  <li>`REPORT_SLAVE_ID`  <li>`READ_FILE_RECORD` = 0x14  <li>`WRITE_FILE_RECORD`  <li>`MASK_WRITE_REGISTER`  <li>`READ_WRITE_MULTIPLE_REGISTER`  <li>`READ_FIFO_QUEUE`  <li>`ENCAPSULATED_INTERFACE_TRANSPORT` = 0x2B | Opcodes disponíveis no protocolo modbus |
+| `modbusError_t` | <ul><li>`MODBUS_NO_ERROR` = 0 <li>`MODBUS_INVALID_OPCODE` <li>`MODBUS_RESPONSE_ERROR` <li>`MODBUS_INVALID_REGISTER_ADDRESS` <li>`MODBUS_TIMEOUT` <li>`MODBUS_INVCORRECT_ID` <li>`MODBUS_INCORRECT_OPCODE` <li>`MODBUS_INCORRECT_FIRST_REGISTER` <li>`MODBUS_INCORRECT_QTT_REGISTERS` <li>`MODBUS_INCORRECT_CRC` | Erros de comunicação.<br>`RESPONSE_ERROR` se trata de uma resposta de erro vinda do equipamento secundário, ela indica que a requisição feita pelo modbus é válida, mas não é aplicável para aquele equipamento.<br>`INCORRECT` indica que uma parte da resposta não estava de acordo com o esperado pela coletora.<br>`INVALID` indica que o tratamento de tal requisição ou resposta ainda não foi implementado ou não existe.
+
+### Structs
+
+| Nome | Componentes | Descrição |
+|---|---|---|
+| `modbusHandler_t` | <ul><li>`GPIO_TypeDef *sendReceivePort:` porta do pino que controla se o modbus envia ou recebe mensagens <li>`uint16_t sendReceivePin:` número do pino que controla se o modbus envia ou recebe mensagens <li>`UART_HandleTypeDef *modbusUart:` endereço da uart em que o modbus está conectado <li>`uint8_t deviceAddress:` endereço do dispositivo <li>`modbusStates_t modbusState:` estado do modbus <li>`uint8_t payloadBuffer[MODBUS_BUFFER_SIZE]:` buffer que armazena os bytes enviados pelo modbus <li>`uint8_t payloadIndex:` índice do buffer do modbus <li>`uint8_t requestId:` endereço de destino da última mensagem enviada <li>`modbusOpcodes_t opcode:` opcode da última mensagem enviada <li>`uint16_t firstRegister:` primeiro endereço da última mensagem enviada <li>`uint16_t qttRegisters:` quantidade de registros da última mensagem enviada <li>`uint32_t calculatedCRC:` CRC calculado a partir do `payloadBuffer` | Handler do modbus. Controla as mensagens enviadas e faz o tratamento das mensagens recebidas. |
+
+### Funções
+
+| Função | Retorno | Parâmetros | Descrição |
+|---|---|---|---|
+| `MODBUS_Begin` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`GPIO_TypeDef *sendReceivePort:` porta do pino que controla se o modbus envia ou recebe mensagens <li>`uint16_t sendReceivePin:` número do pino que controla se o modbus envia ou recebe mensagens <li>`UART_HandleTypeDef *huart:` endereço da uart em que o modbus está conectado <li>`uint8_t deviceAddress:` endereço do dispositivo | Inicializa os componentes do handler do modbus. |
+| `MODBUS_SetSendReceive` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`sendOrReceive_t sendOrReceive:` estado para setar o modbus | Configura o pino de envio e recebimento do modbus para enviar ou receber dados. |
+| `MODBUS_GetSendReceive` | `sendOrReceive_t:` `MODBUS_SET_RECEIVE` ou `MODBUS_SET_SEND` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus |  informa se o modbus está enviando ou recebendo mensagens. |
+| `MODBUS_VerifyMessage` | `modbusError_t:` tipo de erro encontrado | <ul><li>`uint8_t expectedSecondaryAddress:` endereço de origem experado <li>`uint8_t expectedOpcode:` opcode esperado <li>`uint16_t expectedFirstAdress:` primeiro endereço esperado <li>`uint16_t expectedNumberOfData:` quantidade de dados esperados <li>`uint8_t *messageBuffer:` buffer com a mensagem <li>`uint32_t messageLength:` tamanho da mensagem | Informa se a mensagem passada é válida e, se não for, acusa o motivo do erro. |
+| `MODBUS_VerifyWithHandler` | `modbusError_t:` tipo de erro encontrado | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t *messageBuffer:` buffer com a mensagem <li>`uint32_t messageLength:` tamanho da mensagem | Informa se a mensagem passada é válida de acordo com a última mensagem enviada e, se não for, acusa o motivo do erro. |
+| `MODBUS_VerifyCrc` | `modbusError_t:` tipo de erro encontrado | <ul><li>`uint8_t *message:` buffer com a mensagem <li>`uint32_t length:` tamanho da mensagem | Informa se o crc da mensagem passada é válido. |
+| `MODBUS_ReadCoils` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstCoilAddress:` endereço da primeira bobina desejada <li>`uint16_t numberOfCoils:` número de bobinas para ler | Faz uma requisição de leitura de bobinas. |
+| `MODBUS_ReadInputRegisters` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro input register desejado <li>`uint16_t numberOfRegisters:` número de input registers para ler | Faz uma requisição de leitura de input registers. |
+| `MODBUS_ReadSingleHoldingRegister` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado | Faz uma requisição de leitura de um registrador. |
+| `MODBUS_ReadMultipleHoldingRegisters` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint16_t numberOfRegisters:` número de registradores para ler <li>`registerBytes_t sizeOfRegisterBytes:` tamanho em bytes do registrador | Faz uma requisição de leitura de multiplos registradores. |
+| `MODBUS_WriteSingleCoil` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t coilAddress:` endereço da bobina desejada <li>`uint8_t valueToWrite:` valor para escrever na bobina | Faz uma requisição de escrita de uma bobina. |
+| `MODBUS_WriteMultipleCoils` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstCoilAddress:` endereço da primeira bobina desejada <li>`uint16_t numberOfCoils:` número de bobinas para escrever <li>`uint8_t *valuesToWrite:` endereço do buffer com os valores para ser escritos | Faz uma requisição de escrita de multiplas bobinas. |
+| `MODBUS_WriteSingleHoldingRegister` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint32_t valueToWrite:` valor para escrever no registrador <li>`registerBytes_t sizeOfRegisterBytes:` tamanho do registrador | Faz uma requisição de escrita de um registrador. |
+| `MODBUS_WriteMultipleHoldingRegisters` | `void` | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint16_t numberOfRegisters:` número de registradores para ler <li>`registerBytes_t sizeOfRegisterBytes:` tamanho em bytes dos registradores <li>`uint8_t *valuesToWrite:` buffer com os valores que serão escritos nos registradores | Faz uma requisição de escrita de multiplos registradores. |
+
+</details>
+
+#
+
+<details>
 
 <summary>
 
