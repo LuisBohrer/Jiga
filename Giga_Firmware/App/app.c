@@ -81,12 +81,13 @@ UART_HandleTypeDef *MODBUS_UART = &huart3;
 uint8_t modbusLastChar;
 ringBuffer_t modbusRb;
 string modbusLastMessage;
-uint8_t modbusEnabled;
 // Uart declarations and buffers //
 
 // Modbus declarations // [Section]
-const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500;
 modbusHandler_t modbusHandler;
+const uint8_t DEVICE_ADDRESS = 0; // 0 representa o mestre
+const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500;
+uint8_t modbusEnabled;
 // Modbus declarations //
 
 // Timer counters and periods // [Section]
@@ -126,7 +127,7 @@ void APP_init(){
     APP_InitUarts();
     APP_InitTimers();
 
-    MODBUS_Init(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART);
+    MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
     APP_EnableModbus();
 
     appStarted = 1;
@@ -135,6 +136,7 @@ void APP_init(){
 void APP_poll(){
     if(!appStarted)
         return;
+    MODBUS_ReadCoils(&modbusHandler, 0xC8, 0x1201, 0xFCDA);
 
     APP_UpdateReads();
 
@@ -328,18 +330,25 @@ static void APP_TreatDebugMessage(){
 static void APP_TreatModbusMessage(){
     if(!modbusEnabled)
         return;
-    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS &&
-            STRING_GetLength(&modbusLastMessage) > 0){
+    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS
+            && STRING_GetLength(&modbusLastMessage) > 0){
         STRING_Clear(&modbusLastMessage);
         return;
     }
 
     while(!RB_IsEmpty(&modbusRb)){
-        STRING_AddChar(&modbusLastMessage, modbusLastChar);
+        STRING_AddChar(&modbusLastMessage, RB_GetByte(&modbusRb));
     }
 
     if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
             == MODBUS_NO_ERROR){
+        modbusOpcodes_t opcode = STRING_GetChar(&modbusLastMessage, 1);
+        switch(opcode){
+            case READ_COILS:
+                break;
+            default:
+                break;
+        }
         STRING_Clear(&modbusLastMessage);
     }
 }
