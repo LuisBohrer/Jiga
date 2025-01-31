@@ -114,14 +114,14 @@ sendOrReceive_t MODBUS_GetSendReceive(modbusHandler_t *modbusHandler);
 modbusError_t MODBUS_VerifyMessage(uint8_t expectedSecondaryAddress, uint8_t expectedOpcode, uint16_t expectedFirstAdress, uint16_t expectedNumberOfData, uint8_t *messageBuffer, uint32_t messageLength);
 modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer, uint32_t messageLength);
 modbusError_t MODBUS_VerifyCrc(uint8_t *message, uint32_t length);
-void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t coilAddress, uint16_t numberOfCoils);
-void MODBUS_ReadInputRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress, uint16_t numberOfRegisters);
+void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstCoilAddress, uint16_t numberOfCoils);
+void MODBUS_ReadInputRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters);
 void MODBUS_ReadSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress);
 void MODBUS_ReadMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes);
 void MODBUS_WriteSingleCoil(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t coilAddress, uint8_t valueToWrite);
 void MODBUS_WriteMultipleCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstCoilAddress, uint16_t numberOfCoils, uint8_t *valuesToWrite);
 void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress, uint32_t valueToWrite, registerBytes_t sizeOfRegisterBytes);
-void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes, uint8_t* valuesToWrite);
+void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes, uint8_t *valuesToWrite);
 
 // FUNCOES //
 

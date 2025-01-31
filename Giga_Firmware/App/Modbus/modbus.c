@@ -159,14 +159,14 @@ modbusError_t MODBUS_VerifyCrc(uint8_t *message, uint32_t length){
     return MODBUS_NO_ERROR;
 }
 
-void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t coilAddress, uint16_t numberOfCoils){
+void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstCoilAddress, uint16_t numberOfCoils){
     MODBUS_ResetIndexes(modbusHandler);
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_SEND);
 
     MODBUS_SendByte(modbusHandler, secondaryAddress);
     MODBUS_SendByte(modbusHandler, READ_COILS);
-    MODBUS_SendShort(modbusHandler, coilAddress);
+    MODBUS_SendShort(modbusHandler, firstCoilAddress);
     MODBUS_SendShort(modbusHandler, numberOfCoils);
 
     MODBUS_CalculateCrc(modbusHandler);
@@ -175,14 +175,14 @@ void MODBUS_ReadCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
 }
 
-void MODBUS_ReadInputRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress, uint16_t numberOfRegisters){
+void MODBUS_ReadInputRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters){
     MODBUS_ResetIndexes(modbusHandler);
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_SEND);
 
     MODBUS_SendByte(modbusHandler, secondaryAddress);
     MODBUS_SendByte(modbusHandler, READ_INPUT_REGISTERS);
-    MODBUS_SendShort(modbusHandler, registerAddress);
+    MODBUS_SendShort(modbusHandler, firstRegisterAddress);
     MODBUS_SendShort(modbusHandler, numberOfRegisters);
 
     MODBUS_CalculateCrc(modbusHandler);
