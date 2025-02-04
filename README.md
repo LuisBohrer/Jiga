@@ -2,10 +2,75 @@
 
 Repositório destinado ao versionamento do firmware da placa e display da Giga.
 
-O objetivo da placa é fazer a coleta de 10 leituras de tensão e corrente. Ela faz isso a partir de 10 canais de ADC e um interruptor que seleciona se as leituras serão de tensão
-ou corrente.
+O objetivo da placa é fazer a coleta de 10 leituras de tensão e corrente. Ela faz isso a partir de 10 canais de ADC e um interruptor que seleciona se as leituras serão de tensão ou corrente.
 
-Ela também pode comunicar com a Coletora e com Modbus (ainda não implementados).
+#
+
+<details>
+
+<summary>
+
+## Descritivo da Lógica de Funcionamento
+
+</summary>
+
+#
+
+<details>
+
+<summary>
+
+### Rotina Principal
+
+</summary>
+
+Na rotina principal, é feita a inicialição dos periféricos e o setup das uarts, bem como a primeira requisição de leitura por DMA. A primeira leitura feita é de tensão.
+
+Então, no loop, as medições são atualizadas a cada milissegundo e é feito o tratamento de mensagens das uarts.
+
+Finalmente, o microcontrolador entra em sleep.
+
+<div align="center"> <img src="Docs/Imagens/Giga-rotinaPrincipal.png"/> </div>
+
+</details>
+
+#
+
+<details>
+
+<summary>
+
+### Atualização de Leituras
+
+</summary>
+
+A atualização das leituras é feita a cada milissegundo, sempre trocando qual o tipo de leitura é feita. Ou seja, se for feita uma leitura de tensão, após um milissegundo, será feita uma leitura de corrente, então, depois de outro milissegundo, será feita outra leitura de tensão e assim segue.
+
+Sempre que há uma leitura nova, ela é convertida e enviada para o display.
+
+<div align="center"> <img src="Docs/Imagens/Giga-leiturasAdc.png"/> </div>
+
+</details>
+
+#
+
+<details>
+
+<summary>
+
+### Tratamento de Mensagens das Uarts
+
+</summary>
+
+O tratamento das mensagens das uarts é feito sequenciamente, iniciando com a uart do display, então a de debug e, finalmente, a do modbus. As funções de tratamento fazem a construção, a validação e a classificação das mensagens (tipo de requisição, tipo de erro, etc).
+
+As mesmas funções também executam a resposta. Isso foi feito assim, pois, por agora, as respostas são bastante simples e imediatas, caso elas se tornem mais complexas, pode-se desenvolver uma lógica mais organizada.
+
+<div align="center"> <img src="Docs/Imagens/Giga-mensagensUart.png"/> </div>
+
+</details>
+
+</details>
 
 #
 
