@@ -24,12 +24,12 @@ typedef enum{
 
 typedef enum{
     NACK = 1,
-    ACK_VOLTAGE_READS,
+    ACK_VOLTAGE_READS = 22,
     ACK_CURRENT_READS,
     ACK_ALL_READS,
+    ACK_LOGS,
     ACK_MODBUS_CONFIG,
     ACK_CHANGE_SCALE,
-    ACK_LOGS = 22,
 } debugAckSignals_t;
 
 void COMM_Begin(UART_HandleTypeDef *huart);
