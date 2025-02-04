@@ -119,16 +119,16 @@ static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer
 // Application functions // [Section]
 uint8_t appStarted = 0;
 void APP_init(){
-    NEXTION_Begin(DISPLAY_UART);
-    COMM_Begin(DEBUG_UART);
-
-    APP_StartAdcReadDma(READ_VOLTAGE);
-
     APP_InitUarts();
     APP_InitTimers();
 
+    NEXTION_Begin(DISPLAY_UART);
+    COMM_Begin(DEBUG_UART);
     MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
+
     APP_EnableModbus();
+
+    APP_StartAdcReadDma(READ_VOLTAGE);
 
     appStarted = 1;
 }
@@ -201,11 +201,11 @@ static void APP_UpdateReads(){
 
     if(newReads){
         newReads = 0;
+        uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
+        uint16_t decimalSpaces = 0;
         switch(reading){
             case READ_VOLTAGE:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-                    uint16_t decimalSpaces = 0;
                     convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
@@ -224,8 +224,6 @@ static void APP_UpdateReads(){
 
             case READ_CURRENT:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-                    uint16_t decimalSpaces = 0;
                     convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_CURRENT_READ, MAX_CURRENT_READ);
