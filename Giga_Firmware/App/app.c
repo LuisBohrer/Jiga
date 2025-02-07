@@ -16,6 +16,7 @@
 #include "adc.h"
 #include "usart.h"
 #include "tim.h"
+#include "rtc.h"
 #include <stdio.h>
 #include <math.h>
 
@@ -94,9 +95,6 @@ uint8_t modbusEnabled;
 volatile uint32_t updateReadsCounter_ms = 0;
 const uint32_t UPDATE_READS_PERIOD_MS = 1;
 
-volatile uint32_t sendLogCounter_ms = 0;
-const uint32_t SEND_LOG_PERIOD_MS = 1000;
-
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 // Timer counters and periods //
 
@@ -107,6 +105,7 @@ static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_UpdateReads(void);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
+static void APP_SendPeriodicReads(void);
 static void APP_TreatDebugMessage(void);
 static void APP_TreatModbusMessage(void);
 static void APP_EnableModbus(void);
@@ -114,6 +113,10 @@ static void APP_DisableModbus(void);
 static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart);
 static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
 static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer, uartBaudRate_t baudRate, uartStopBits_t stopBits, uartParity_t parity);
+static void APP_SendReadsMinute(void);
+static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
+static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, uint8_t year);
+static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime);
 // Static function declarations //
 
 // Application functions // [Section]
@@ -130,19 +133,23 @@ void APP_init(){
 
     APP_StartAdcReadDma(READ_VOLTAGE);
 
+    APP_SetRtcTime(&hrtc, 55, 38, 14);
+    APP_SetRtcDate(&hrtc, 07, 02, 25);
+
     appStarted = 1;
 }
 
 void APP_poll(){
     if(!appStarted)
         return;
-    MODBUS_ReadCoils(&modbusHandler, 0xC8, 0x1201, 0xFCDA);
 
     APP_UpdateReads();
 
     APP_TreatDisplayMessage();
     APP_TreatDebugMessage();
     APP_TreatModbusMessage();
+
+    APP_SendReadsMinute();
 
     UTILS_CpuSleep();
 }
@@ -175,6 +182,8 @@ static void APP_InitTimers(){
     do{
         status = HAL_TIM_Base_Start_IT(&htim6);
     } while(status != HAL_OK);
+
+    HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 2000, RTC_WAKEUPCLOCK_RTCCLK_DIV16); // 1 seg
 }
 
 static void APP_StartAdcReadDma(reading_t typeOfRead){
@@ -429,21 +438,38 @@ static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer
 // Specific utility functions // [Section]
 static void APP_SendLog(){
     string logMessage;
+    STRING_Init(&logMessage);
+    APP_AddRtcTimestampToString(&logMessage, &hrtc);
+    STRING_AddCharString(&logMessage, "\n\r");
+    COMM_SendStartPacket();
+    COMM_SendAck(ACK_LOGS);
+    COMM_SendString(&logMessage);
 
     for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-        STRING_Init(&logMessage);
         STRING_AddCharString(&logMessage, "\n\r");
-        char line[100] = {'\0'};
-        sprintf(line, "[LOG] Read %d: Voltage = %.2f V ; Current = %.2f mA", i, convertedVoltageReads_V[i], convertedCurrentReads_mA[i]);
-        STRING_AddCharString(&logMessage, line);
-        STRING_AddCharString(&logMessage, "\n\r");
-        COMM_SendStartPacket();
-        COMM_SendAck(ACK_LOGS);
-        COMM_SendString(&logMessage);
-        COMM_SendEndPacket();
+        uint8_t line[100] = {'\0'};
+        uint8_t length = sprintf((char*)line, "[LOG] Read %d: Voltage = %.2f V ; Current = %.2f mA\n\r", i, convertedVoltageReads_V[i], convertedCurrentReads_mA[i]);
+        COMM_SendChar(line, length);
     }
+    COMM_SendEndPacket();
+}
 
-    sendLogCounter_ms = 0;
+static void APP_SendPeriodicReads(){
+    string message;
+    STRING_Init(&message);
+    STRING_AddCharString(&message, "\n\r");
+    APP_AddRtcTimestampToString(&message, &hrtc);
+    STRING_AddCharString(&message, "\n\r");
+    COMM_SendString(&message);
+
+    for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+        STRING_Init(&message);
+        char line[100] = {'\0'};
+        sprintf(line, "Read %d: Voltage = %.2f V ; Current = %.2f mA", i, convertedVoltageReads_V[i], convertedCurrentReads_mA[i]);
+        STRING_AddCharString(&message, line);
+        STRING_AddCharString(&message, "\n\r");
+        COMM_SendString(&message);
+    }
 }
 
 static void APP_EnableModbus(){
@@ -470,6 +496,60 @@ static void APP_DisableModbus(){
     HAL_GPIO_WritePin(LIGA_RS485__GPIO_Port, LIGA_RS485__Pin, GPIO_PIN_SET);
 
     modbusEnabled = 0;
+}
+
+    RTC_TimeTypeDef currentTime;
+static void APP_SendReadsMinute(){
+    static uint8_t lastMessageMinute = 61;
+    HAL_RTC_GetTime(&hrtc, &currentTime, RTC_FORMAT_BIN);
+    HAL_RTC_GetDate(&hrtc, NULL, RTC_FORMAT_BIN); // necessario pra nao travar o rtc
+
+    if(lastMessageMinute != currentTime.Minutes){
+        APP_SendPeriodicReads();
+        lastMessageMinute = currentTime.Minutes;
+    }
+}
+
+static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours){
+    RTC_TimeTypeDef newTime = {0};
+    newTime.Seconds = seconds;
+    newTime.Minutes = minutes;
+    newTime.Hours = hours;
+
+    HAL_StatusTypeDef status;
+    do{
+        status = HAL_RTC_SetTime(hrtc, &newTime, RTC_FORMAT_BIN);
+    } while(status != HAL_OK);
+}
+
+static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, uint8_t year){
+    RTC_DateTypeDef newDate = {0};
+    newDate.Date = day;
+    newDate.Month = month;
+    newDate.Year = year;
+
+    HAL_StatusTypeDef status;
+    do{
+        status = HAL_RTC_SetDate(hrtc, &newDate, RTC_FORMAT_BIN);
+    } while(status != HAL_OK);
+}
+
+static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime){
+    RTC_DateTypeDef date;
+    RTC_TimeTypeDef time;
+    char buffer[100];
+
+    HAL_RTC_GetDate(baseTime, &date, RTC_FORMAT_BIN);
+    HAL_RTC_GetTime(baseTime, &time, RTC_FORMAT_BIN);
+
+    sprintf(buffer, "%.2d/%.2d/%.4d %.2d:%.2d:%.2d",
+            date.Date,
+            date.Month,
+            date.Year + 2000,
+            time.Hours,
+            time.Minutes,
+            time.Seconds);
+    STRING_AddCharString(String, buffer);
 }
 // Specific utility functions //
 
@@ -515,10 +595,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
     if(htim == &htim6){
         if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS)
             updateReadsCounter_ms++;
-        if(sendLogCounter_ms < SEND_LOG_PERIOD_MS)
-            sendLogCounter_ms++;
         if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS)
             modbusTimeBetweenByteCounter_ms++;
     }
+}
+
+void HAL_RTCEx_WakeUpTimerEventCallback(RTC_HandleTypeDef *hrtc){
+
 }
 // Callbacks //

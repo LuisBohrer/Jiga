@@ -5,7 +5,7 @@
  *      Author: luisv
  */
 
-#include "string.h"
+#include "String/string.h"
 #include <math.h>
 
 void STRING_Init(string *self){
