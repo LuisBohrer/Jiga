@@ -52,8 +52,8 @@ Thumbs.db
 
 *.launch
 **/.settings/
-NoTouch/.settings/
-NoTouch_Firmware/.settings/
-NoTouch_Firmware/.cproject/
+Jiga/.settings/
+Jiga_Firmware/.settings/
+Jiga_Firmware/.cproject/
 Debug/
-NoTouch_Hardware/41869-CAD_NoTouch_REV4.0S/
+Jiga_Hardware/41869-CAD_Jiga_REV4.0S/
