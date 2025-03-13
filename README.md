@@ -1,6 +1,6 @@
-# Giga
+# Jiga
 
-Repositório destinado ao versionamento do firmware da placa e display da Giga.
+Repositório destinado ao versionamento do firmware da placa e display da Jiga.
 
 O objetivo da placa é fazer a coleta de 10 leituras de tensão e corrente. Ela faz isso a partir de 10 canais de ADC e um interruptor que seleciona se as leituras serão de tensão ou corrente.
 
@@ -30,7 +30,7 @@ Então, no loop, as medições são atualizadas a cada milissegundo e é feito o
 
 Finalmente, o microcontrolador entra em sleep.
 
-<div align="center"> <img src="Docs/Imagens/Giga-rotinaPrincipal.png"/> </div>
+<div align="center"> <img src="Docs/Imagens/Jiga-rotinaPrincipal.png"/> </div>
 
 </details>
 
@@ -48,7 +48,7 @@ A atualização das leituras é feita a cada milissegundo, sempre trocando qual 
 
 Sempre que há uma leitura nova, ela é convertida e enviada para o display.
 
-<div align="center"> <img src="Docs/Imagens/Giga-leiturasAdc.png"/> </div>
+<div align="center"> <img src="Docs/Imagens/Jiga-leiturasAdc.png"/> </div>
 
 </details>
 
@@ -66,7 +66,7 @@ O tratamento das mensagens das uarts é feito sequenciamente, iniciando com a ua
 
 As mesmas funções também executam a resposta. Isso foi feito assim, pois, por agora, as respostas são bastante simples e imediatas, caso elas se tornem mais complexas, pode-se desenvolver uma lógica mais organizada.
 
-<div align="center"> <img src="Docs/Imagens/Giga-mensagensUart.png"/> </div>
+<div align="center"> <img src="Docs/Imagens/Jiga-mensagensUart.png"/> </div>
 
 </details>
 
