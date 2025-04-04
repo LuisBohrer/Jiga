@@ -51,24 +51,46 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(MCS_GPIO_Port, MCS_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, MCS_Pin|E_RS485_Pin|LED1_Pin|LED2_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, E_RS485_Pin|LIGA_RS485__Pin|LIGA_RS485_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, nFLASH_ON_Pin|LIGA_RS485__Pin|DIS_EN_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : MCS_Pin */
-  GPIO_InitStruct.Pin = MCS_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, SELECT_Pin|LIGA_RS485_Pin|LIGA5V_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : MCS_Pin E_RS485_Pin LED1_Pin LED2_Pin */
+  GPIO_InitStruct.Pin = MCS_Pin|E_RS485_Pin|LED1_Pin|LED2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(MCS_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : E_RS485_Pin LIGA_RS485_Pin */
-  GPIO_InitStruct.Pin = E_RS485_Pin|LIGA_RS485_Pin;
+  /*Configure GPIO pin : nFLASH_ON_Pin */
+  GPIO_InitStruct.Pin = nFLASH_ON_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(nFLASH_ON_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : ADDR4_Pin ADDR3_Pin ADDR2_Pin ADDR1_Pin */
+  GPIO_InitStruct.Pin = ADDR4_Pin|ADDR3_Pin|ADDR2_Pin|ADDR1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : EXTI_Pin */
+  GPIO_InitStruct.Pin = EXTI_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(EXTI_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : SELECT_Pin LIGA_RS485_Pin LIGA5V_Pin */
+  GPIO_InitStruct.Pin = SELECT_Pin|LIGA_RS485_Pin|LIGA5V_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : LIGA_RS485__Pin */
   GPIO_InitStruct.Pin = LIGA_RS485__Pin;
@@ -76,6 +98,17 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(LIGA_RS485__GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : DIS_EN_Pin */
+  GPIO_InitStruct.Pin = DIS_EN_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(DIS_EN_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 }
 

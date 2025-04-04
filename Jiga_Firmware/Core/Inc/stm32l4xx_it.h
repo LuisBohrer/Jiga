@@ -22,7 +22,7 @@
 #define __STM32L4xx_IT_H
 
 #ifdef __cplusplus
- extern "C" {
+extern "C" {
 #endif
 
 /* Private includes ----------------------------------------------------------*/
@@ -57,6 +57,7 @@ void PendSV_Handler(void);
 void SysTick_Handler(void);
 void RTC_WKUP_IRQHandler(void);
 void DMA1_Channel1_IRQHandler(void);
+void EXTI9_5_IRQHandler(void);
 void USART1_IRQHandler(void);
 void USART3_IRQHandler(void);
 void TIM6_DAC_IRQHandler(void);

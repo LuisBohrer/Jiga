@@ -279,11 +279,11 @@ static void APP_TreatDebugMessage(){
         if(request == INCOMPLETE_REQUEST)
             return;
 
-//        if(request == LOGS){
-//            APP_SendLog();
-//            STRING_Clear(&debugLastMessage);
-//            return;
-//        }
+        //        if(request == LOGS){
+        //            APP_SendLog();
+        //            STRING_Clear(&debugLastMessage);
+        //            return;
+        //        }
 
         COMM_SendStartPacket();
         switch(request){
@@ -337,8 +337,8 @@ static void APP_TreatDebugMessage(){
 static void APP_TreatModbusMessage(){
     if(!modbusEnabled)
         return;
-    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS
-            && STRING_GetLength(&modbusLastMessage) > 0){
+    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS &&
+            STRING_GetLength(&modbusLastMessage) > 0){
         STRING_Clear(&modbusLastMessage);
         return;
     }
@@ -498,7 +498,7 @@ static void APP_DisableModbus(){
     modbusEnabled = 0;
 }
 
-    RTC_TimeTypeDef currentTime;
+RTC_TimeTypeDef currentTime;
 static void APP_SendReadsMinute(){
     static uint8_t lastMessageMinute = 61;
     HAL_RTC_GetTime(&hrtc, &currentTime, RTC_FORMAT_BIN);
