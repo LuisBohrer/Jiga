@@ -19,6 +19,7 @@
 #include "rtc.h"
 #include <stdio.h>
 #include <math.h>
+#include "Leds/leds.h"
 
 // ADC constants and buffers // [Section]
 #define NUMBER_OF_CHANNELS 10
@@ -42,6 +43,17 @@ float convertedVoltageReads_V[NUMBER_OF_CHANNELS] = {0};
 
 uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
 float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
+
+const uint16_t* inputRegistersMap[NUMBER_OF_CHANNELS*2] = {0};
+
+uint16_t calibrateTime_ms = 1000;
+#define SIZE_OF_MOVING_AVERAGE 500
+uint16_t voltageMovingAverageBuffer[NUMBER_OF_CHANNELS][SIZE_OF_MOVING_AVERAGE] = {0};
+uint8_t voltageMovingAverageIndex[NUMBER_OF_CHANNELS] = {0};
+uint16_t voltageMovingAverage[NUMBER_OF_CHANNELS] = {0};
+uint16_t currentMovingAverageBuffer[NUMBER_OF_CHANNELS][SIZE_OF_MOVING_AVERAGE] = {0};
+uint8_t currentMovingAverageIndex[NUMBER_OF_CHANNELS] = {0};
+uint16_t currentMovingAverage[NUMBER_OF_CHANNELS] = {0};
 // ADC constants and buffers //
 
 // Display constants // [Section]
@@ -86,7 +98,7 @@ string modbusLastMessage;
 
 // Modbus declarations // [Section]
 modbusHandler_t modbusHandler;
-const uint8_t DEVICE_ADDRESS = 0; // 0 representa o mestre
+uint8_t DEVICE_ADDRESS = 0; // 0 representa o mestre
 const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500;
 uint8_t modbusEnabled;
 // Modbus declarations //
@@ -98,10 +110,22 @@ const uint32_t UPDATE_READS_PERIOD_MS = 1;
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 // Timer counters and periods //
 
+// Board supply enables declarations // [Section]
+typedef enum{
+    SUPPLY_5V = 1,
+    SUPPLY_DISPLAY = 1 << 1,
+    SUPPLY_RS485 = 1 << 2,
+    SUPPLY_ALL = SUPPLY_5V | SUPPLY_DISPLAY | SUPPLY_RS485,
+} supplyEnable_t;
+// Board supply enables declarations //
+
 // Static function declarations // [Section]
 static void APP_InitUarts(void);
 static void APP_InitTimers(void);
+static void APP_EnableSupplies(uint8_t supplyFlags);
+static void APP_DisableSupplies(uint8_t supplyFlags);
 static void APP_StartAdcReadDma(reading_t typeOfRead);
+static void APP_InitModbus(void);
 static void APP_UpdateReads(void);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
@@ -117,6 +141,7 @@ static void APP_SendReadsMinute(void);
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
 static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, uint8_t year);
 static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime);
+static void APP_CalibrateSensors(void);
 // Static function declarations //
 
 // Application functions // [Section]
@@ -125,9 +150,11 @@ void APP_init(){
     APP_InitUarts();
     APP_InitTimers();
 
+    APP_EnableSupplies(SUPPLY_ALL);
+
     NEXTION_Begin(DISPLAY_UART);
     COMM_Begin(DEBUG_UART);
-    MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
+    APP_InitModbus();
 
     APP_EnableModbus();
 
@@ -136,7 +163,11 @@ void APP_init(){
     APP_SetRtcTime(&hrtc, 55, 38, 14);
     APP_SetRtcDate(&hrtc, 07, 02, 25);
 
+
+    vLEDS_SetLedState(1, GPIO_PIN_SET);
+    vLEDS_SetLedState(2, GPIO_PIN_RESET);
     appStarted = 1;
+    APP_CalibrateSensors();
 }
 
 void APP_poll(){
@@ -186,13 +217,53 @@ static void APP_InitTimers(){
     HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 2000, RTC_WAKEUPCLOCK_RTCCLK_DIV16); // 1 seg
 }
 
+static void APP_EnableSupplies(uint8_t supplyFlags){
+    if(supplyFlags & SUPPLY_5V){
+        HAL_GPIO_WritePin(LIGA5V_GPIO_Port, LIGA5V_Pin, GPIO_PIN_SET);
+    }
+    if(supplyFlags & SUPPLY_DISPLAY){
+        HAL_GPIO_WritePin(DIS_EN_GPIO_Port, DIS_EN_Pin, GPIO_PIN_SET);
+    }
+    if(supplyFlags & SUPPLY_RS485){
+        HAL_GPIO_WritePin(LIGA_RS485_GPIO_Port, LIGA_RS485_Pin, GPIO_PIN_SET);
+    }
+}
+
+static void APP_DisableSupplies(uint8_t supplyFlags){
+    if(supplyFlags & SUPPLY_5V){
+        HAL_GPIO_WritePin(LIGA5V_GPIO_Port, LIGA5V_Pin, GPIO_PIN_RESET);
+    }
+    if(supplyFlags & SUPPLY_DISPLAY){
+        HAL_GPIO_WritePin(DIS_EN_GPIO_Port, DIS_EN_Pin, GPIO_PIN_RESET);
+    }
+    if(supplyFlags & SUPPLY_RS485){
+        HAL_GPIO_WritePin(LIGA5V_GPIO_Port, LIGA5V_Pin, GPIO_PIN_RESET);
+    }
+}
+
 static void APP_StartAdcReadDma(reading_t typeOfRead){
     HAL_StatusTypeDef status;
+    HAL_GPIO_WritePin(SELECT_GPIO_Port, SELECT_Pin, typeOfRead == READ_VOLTAGE);
     uint16_t *readsBuffer = typeOfRead == READ_VOLTAGE ? adcVoltageReads : adcCurrentReads;
     do{
         status = HAL_ADC_Start_DMA(&hadc1, (uint32_t*) readsBuffer, NUMBER_OF_CHANNELS);
     } while(status != HAL_OK);
     reading = typeOfRead;
+}
+
+static void APP_InitModbus(void){
+    DEVICE_ADDRESS |= (HAL_GPIO_ReadPin(ADDR1_GPIO_Port, ADDR1_Pin));
+    DEVICE_ADDRESS |= (HAL_GPIO_ReadPin(ADDR2_GPIO_Port, ADDR2_Pin) << 1);
+    DEVICE_ADDRESS |= (HAL_GPIO_ReadPin(ADDR3_GPIO_Port, ADDR3_Pin) << 2);
+    DEVICE_ADDRESS |= (HAL_GPIO_ReadPin(ADDR4_GPIO_Port, ADDR4_Pin) << 3);
+    DEVICE_ADDRESS += 0x6C;
+
+    for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+        inputRegistersMap[i*2] = &adcVoltageReads[i];
+        inputRegistersMap[i*2 + 1] = &adcCurrentReads[i];
+    }
+
+    MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
 }
 // Init functions //
 
@@ -215,8 +286,10 @@ static void APP_UpdateReads(){
         switch(reading){
             case READ_VOLTAGE:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+                    integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
+                    decimalSpaces = 0;
                     convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
-                            MIN_ADC_READ, MAX_ADC_READ,
+                            voltageMovingAverage[i], MAX_ADC_READ,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                     for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
                         if(convertedVoltageReads_V[i] > order){
@@ -233,8 +306,10 @@ static void APP_UpdateReads(){
 
             case READ_CURRENT:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+                    integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
+                    decimalSpaces = 0;
                     convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
-                            MIN_ADC_READ, MAX_ADC_READ,
+                            currentMovingAverage[i], MAX_ADC_READ,
                             MIN_CURRENT_READ, MAX_CURRENT_READ);
                     for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
                         if(convertedCurrentReads_mA[i] > order){
@@ -345,17 +420,33 @@ static void APP_TreatModbusMessage(){
 
     while(!RB_IsEmpty(&modbusRb)){
         STRING_AddChar(&modbusLastMessage, RB_GetByte(&modbusRb));
-    }
+        vLEDS_SetLedState(2, GPIO_PIN_SET);
+    };
+    vLEDS_SetLedState(2, GPIO_PIN_RESET);
 
     if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
             == MODBUS_NO_ERROR){
-        modbusOpcodes_t opcode = STRING_GetChar(&modbusLastMessage, 1);
-        switch(opcode){
+        MODBUS_UpdateHandler(&modbusHandler, STRING_GetBuffer(&modbusLastMessage));
+        if(modbusHandler.requestId != DEVICE_ADDRESS){
+            STRING_Clear(&modbusLastMessage);
+            return;
+        }
+
+        uint8_t responseBuffer[100] = {0};
+        uint16_t responseBufferIndex = 0;
+        switch(modbusHandler.opcode){
             case READ_COILS:
+                break;
+            case READ_INPUT_REGISTERS:
+                for(uint8_t i = 0; i < modbusHandler.qttRegisters; i++){
+                    responseBuffer[responseBufferIndex++] = (*inputRegistersMap[modbusHandler.firstRegister + i]) >> 8;
+                    responseBuffer[responseBufferIndex++] = (*inputRegistersMap[modbusHandler.firstRegister + i]) & 0xFF;
+                }
                 break;
             default:
                 break;
         }
+        MODBUS_SendResponse(&modbusHandler, responseBuffer, responseBufferIndex);
         STRING_Clear(&modbusLastMessage);
     }
 }
@@ -551,6 +642,42 @@ static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseT
             time.Seconds);
     STRING_AddCharString(String, buffer);
 }
+
+static void APP_CalibrateSensors(){
+    calibrateTime_ms = 1000;
+    while(calibrateTime_ms){
+        APP_StartAdcReadDma(!reading);
+        if(newReads){
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                if(reading == READ_VOLTAGE){
+                    voltageMovingAverageBuffer[channel][voltageMovingAverageIndex[channel]++] = adcVoltageReads[channel];
+                    if(voltageMovingAverageIndex[channel] >= 100){
+                        voltageMovingAverageIndex[channel] = 0;
+                    }
+
+                    voltageMovingAverage[channel] = 0;
+                    for(uint16_t i = 0; i < SIZE_OF_MOVING_AVERAGE; i++){
+                        voltageMovingAverage[channel] += voltageMovingAverageBuffer[channel][i];
+                    }
+                    voltageMovingAverage[channel] /= 100;
+                }
+                else if(reading == READ_CURRENT){
+                    currentMovingAverageBuffer[channel][currentMovingAverageIndex[channel]++] = adcCurrentReads[channel];
+                    if(voltageMovingAverageIndex[channel] >= 100){
+                        voltageMovingAverageIndex[channel] = 0;
+                    }
+
+                    currentMovingAverage[channel] = 0;
+                    for(uint16_t i = 0; i < SIZE_OF_MOVING_AVERAGE; i++){
+                        currentMovingAverage[channel] += currentMovingAverageBuffer[channel][i];
+                    }
+                    currentMovingAverage[channel] /= 100;
+                }
+            }
+            newReads = 0;
+        }
+    }
+}
 // Specific utility functions //
 
 // Callbacks // [Section]
@@ -597,6 +724,10 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
             updateReadsCounter_ms++;
         if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS)
             modbusTimeBetweenByteCounter_ms++;
+        if(calibrateTime_ms)
+            calibrateTime_ms--;
+
+        vLEDS_LedsTimerCallback();
     }
 }
 

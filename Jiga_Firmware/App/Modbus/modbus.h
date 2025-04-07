@@ -71,6 +71,7 @@ typedef enum enMODBUS_Error{
 } modbusError_t;
 
 typedef enum enMODBUS_RegisterBytes{
+    MODBUS_REGISTER_1_BIT = 0,
     MODBUS_REGISTER_8_BITS = 1,
     MODBUS_REGISTER_16_BITS = 2,
     MODBUS_REGISTER_32_BITS = 4,
@@ -100,6 +101,7 @@ typedef struct {
     modbusOpcodes_t opcode;
     uint16_t firstRegister;
     uint16_t qttRegisters;
+    uint16_t qttBytes;
     uint32_t calculatedCRC;
 } modbusHandler_t;
 
@@ -122,6 +124,8 @@ void MODBUS_WriteSingleCoil(modbusHandler_t *modbusHandler, uint8_t secondaryAdd
 void MODBUS_WriteMultipleCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstCoilAddress, uint16_t numberOfCoils, uint8_t *valuesToWrite);
 void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress, uint32_t valueToWrite, registerBytes_t sizeOfRegisterBytes);
 void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes, uint8_t *valuesToWrite);
+void MODBUS_SendResponse(modbusHandler_t *modbusHandler, uint8_t *responseBuffer, uint16_t responseBufferLength);
+void MODBUS_UpdateHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer);
 
 // FUNCOES //
 

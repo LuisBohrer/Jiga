@@ -37,6 +37,7 @@ void MODBUS_Begin(modbusHandler_t *modbusHandler, GPIO_TypeDef *sendReceivePort,
     modbusHandler->firstRegister = 0x00;
     modbusHandler->requestId = 0x00;
     modbusHandler->qttRegisters = 0;
+    modbusHandler->qttBytes = 0;
     modbusHandler->calculatedCRC = 0;
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
@@ -51,6 +52,7 @@ static void MODBUS_ResetHandler(modbusHandler_t *modbusHandler){
     modbusHandler->opcode = 0;
     modbusHandler->firstRegister = 0x00;
     modbusHandler->qttRegisters = 0;
+    modbusHandler->qttBytes = 0;
     modbusHandler->calculatedCRC = 0;
     modbusHandler->modbusState = MODBUS_IDLE;
 }
@@ -79,6 +81,7 @@ static void MODBUS_SendLong(modbusHandler_t *modbusHandler, uint32_t longValue){
 static inline void MODBUS_CalculateCrc(modbusHandler_t *modbusHandler){
     modbusHandler->calculatedCRC = (uint16_t) HAL_CRC_Calculate(&hcrc,
             (uint32_t*)modbusHandler->payloadBuffer, modbusHandler->payloadIndex);
+    modbusHandler->calculatedCRC = modbusHandler->calculatedCRC << 8 | modbusHandler->calculatedCRC >> 8;
 }
 
 void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendOrReceive){
@@ -150,10 +153,10 @@ modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *
 }
 
 modbusError_t MODBUS_VerifyCrc(uint8_t *message, uint32_t length){
-    if(length < 6){
+    if(length < 8){
         return MODBUS_INVALID_MESSAGE;
     }
-    if(HAL_CRC_Calculate(&hcrc, (uint32_t*) message, length - 2) != ((message[length - 2] << 8) | message[length - 1] )){
+    if(HAL_CRC_Calculate(&hcrc, (uint32_t*) message, length - 2) != ((message[length - 1] << 8) | message[length - 2] )){
         return MODBUS_INCORRECT_CRC;
     }
     return MODBUS_NO_ERROR;
@@ -230,6 +233,7 @@ void MODBUS_WriteSingleCoil(modbusHandler_t *modbusHandler, uint8_t secondaryAdd
 
 void MODBUS_WriteMultipleCoils(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstCoilAddress, uint16_t numberOfCoils, uint8_t *valuesToWrite){
     uint32_t numberOfBytesToWrite = numberOfCoils/8;
+    modbusHandler->qttBytes = numberOfBytesToWrite;
     MODBUS_ResetIndexes(modbusHandler);
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_SEND);
@@ -272,6 +276,7 @@ void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t s
 
 void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes, uint8_t* valuesToWrite){
     uint32_t numberOfBytesToWrite = numberOfRegisters*((uint8_t)sizeOfRegisterBytes);
+    modbusHandler->qttBytes = numberOfBytesToWrite;
     MODBUS_ResetIndexes(modbusHandler);
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_SEND);
@@ -289,4 +294,34 @@ void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_
     MODBUS_SendShort(modbusHandler, modbusHandler->calculatedCRC);
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
+}
+
+void MODBUS_SendResponse(modbusHandler_t *modbusHandler, uint8_t *responseBuffer, uint16_t responseBufferLength){
+    modbusHandler->qttBytes = modbusHandler->qttRegisters*responseBufferLength;
+    MODBUS_ResetIndexes(modbusHandler);
+
+    MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_SEND);
+
+    MODBUS_SendByte(modbusHandler, modbusHandler->deviceAddress);
+    MODBUS_SendByte(modbusHandler, modbusHandler->opcode);
+//    MODBUS_SendShort(modbusHandler, modbusHandler->firstRegister);
+//    MODBUS_SendShort(modbusHandler, modbusHandler->qttRegisters);
+    MODBUS_SendByte(modbusHandler, responseBufferLength);
+    for(uint32_t i = 0; i < responseBufferLength; i++){
+        MODBUS_SendByte(modbusHandler, responseBuffer[i]);
+    }
+
+    MODBUS_CalculateCrc(modbusHandler);
+    MODBUS_SendShort(modbusHandler, modbusHandler->calculatedCRC);
+
+    MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
+}
+
+void MODBUS_UpdateHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer){
+    modbusHandler->requestId = messageBuffer[0];
+    modbusHandler->opcode = messageBuffer[1];
+    modbusHandler->firstRegister = messageBuffer[2] << 8;
+    modbusHandler->firstRegister |= messageBuffer[3];
+    modbusHandler->qttRegisters = messageBuffer[4] << 8;
+    modbusHandler->qttRegisters |= messageBuffer[5];
 }

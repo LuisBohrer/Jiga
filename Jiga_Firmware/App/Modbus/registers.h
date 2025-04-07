@@ -1,0 +1,47 @@
+/*
+ * registers.h
+ *
+ *  Created on: Apr 7, 2025
+ *      Author: luisv
+ */
+
+#ifndef MODBUS_REGISTERS_H_
+#define MODBUS_REGISTERS_H_
+
+typedef enum{
+    NUMBER_OF_DISCRETE_INPUTS
+} registerDiscreteInputs_t;
+
+typedef enum{
+    NUMBER_OF_COILS
+} registerCoils_t;
+
+typedef enum{
+    REGISTER_VOLTAGE_1,
+    REGISTER_CURRENT_1,
+    REGISTER_VOLTAGE_2,
+    REGISTER_CURRENT_2,
+    REGISTER_VOLTAGE_3,
+    REGISTER_CURRENT_3,
+    REGISTER_VOLTAGE_4,
+    REGISTER_CURRENT_4,
+    REGISTER_VOLTAGE_5,
+    REGISTER_CURRENT_5,
+    REGISTER_VOLTAGE_6,
+    REGISTER_CURRENT_6,
+    REGISTER_VOLTAGE_7,
+    REGISTER_CURRENT_7,
+    REGISTER_VOLTAGE_8,
+    REGISTER_CURRENT_8,
+    REGISTER_VOLTAGE_9,
+    REGISTER_CURRENT_9,
+    REGISTER_VOLTAGE_10,
+    REGISTER_CURRENT_10,
+    NUMBER_OF_INPUT_REGISTERS
+} registerInputRegisters_t;
+
+typedef enum{
+    NUMBER_OF_HOLDING_REGISTERS
+} registerHoldingRegisters_t;
+
+#endif /* MODBUS_REGISTERS_H_ */
