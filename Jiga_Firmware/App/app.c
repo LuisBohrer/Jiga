@@ -24,12 +24,15 @@
 // ADC constants and buffers // [Section]
 #define NUMBER_OF_CHANNELS 10
 
-const float MIN_ADC_READ = 0;
-const float MAX_ADC_READ = 4095;
+float adcVoltageCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
+float adcVoltageCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
+float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
+float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
 const float MIN_VOLTAGE_READ = 0;
 const float MAX_VOLTAGE_READ = 13.3; // V
 const float MIN_CURRENT_READ = 0;
 const float MAX_CURRENT_READ = 3025; // mA
+//const float MAX_CURRENT_READ = 2944; // mA
 
 typedef enum{
     READ_VOLTAGE = 0,
@@ -46,14 +49,9 @@ float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 
 const uint16_t* inputRegistersMap[NUMBER_OF_CHANNELS*2] = {0};
 
-uint16_t calibrateTime_ms = 1000;
-#define SIZE_OF_MOVING_AVERAGE 500
-uint16_t voltageMovingAverageBuffer[NUMBER_OF_CHANNELS][SIZE_OF_MOVING_AVERAGE] = {0};
-uint8_t voltageMovingAverageIndex[NUMBER_OF_CHANNELS] = {0};
-uint16_t voltageMovingAverage[NUMBER_OF_CHANNELS] = {0};
-uint16_t currentMovingAverageBuffer[NUMBER_OF_CHANNELS][SIZE_OF_MOVING_AVERAGE] = {0};
-uint8_t currentMovingAverageIndex[NUMBER_OF_CHANNELS] = {0};
-uint16_t currentMovingAverage[NUMBER_OF_CHANNELS] = {0};
+#define MOVING_AVERAGE_BUFFER_SIZE 20
+uint16_t movingAverageBuffer[NUMBER_OF_CHANNELS][MOVING_AVERAGE_BUFFER_SIZE] = {0};
+uint8_t movingAverageIndex[NUMBER_OF_CHANNELS] = {0};
 // ADC constants and buffers //
 
 // Display constants // [Section]
@@ -105,7 +103,7 @@ uint8_t modbusEnabled;
 
 // Timer counters and periods // [Section]
 volatile uint32_t updateReadsCounter_ms = 0;
-const uint32_t UPDATE_READS_PERIOD_MS = 1;
+const uint32_t UPDATE_READS_PERIOD_MS = 10;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 // Timer counters and periods //
@@ -127,6 +125,10 @@ static void APP_DisableSupplies(uint8_t supplyFlags);
 static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_InitModbus(void);
 static void APP_UpdateReads(void);
+static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel);
+static void APP_MovingAverageAddValue(uint16_t value, uint8_t channel);
+static uint16_t APP_MovingAverageGetValue(uint8_t channel);
+static void APP_MovingAverageClear(uint8_t channel);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
 static void APP_SendPeriodicReads(void);
@@ -141,7 +143,7 @@ static void APP_SendReadsMinute(void);
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
 static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, uint8_t year);
 static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime);
-static void APP_CalibrateSensors(void);
+static void APP_CalibrateSensorsMin(void);
 // Static function declarations //
 
 // Application functions // [Section]
@@ -158,6 +160,9 @@ void APP_init(){
 
     APP_EnableModbus();
 
+    for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+        APP_MovingAverageClear(channel);
+    }
     APP_StartAdcReadDma(READ_VOLTAGE);
 
     APP_SetRtcTime(&hrtc, 55, 38, 14);
@@ -167,7 +172,7 @@ void APP_init(){
     vLEDS_SetLedState(1, GPIO_PIN_SET);
     vLEDS_SetLedState(2, GPIO_PIN_RESET);
     appStarted = 1;
-    APP_CalibrateSensors();
+//    APP_CalibrateSensorsMin();
 }
 
 void APP_poll(){
@@ -244,20 +249,23 @@ static void APP_DisableSupplies(uint8_t supplyFlags){
 static void APP_StartAdcReadDma(reading_t typeOfRead){
     HAL_StatusTypeDef status;
     HAL_GPIO_WritePin(SELECT_GPIO_Port, SELECT_Pin, typeOfRead == READ_VOLTAGE);
+    HAL_Delay(5); // importante pra ter leituras certas
     uint16_t *readsBuffer = typeOfRead == READ_VOLTAGE ? adcVoltageReads : adcCurrentReads;
     do{
         status = HAL_ADC_Start_DMA(&hadc1, (uint32_t*) readsBuffer, NUMBER_OF_CHANNELS);
     } while(status != HAL_OK);
+    HAL_Delay(5); // importante pra ter leituras certas
     reading = typeOfRead;
 }
 
 static void APP_InitModbus(void){
-    DEVICE_ADDRESS |= (HAL_GPIO_ReadPin(ADDR1_GPIO_Port, ADDR1_Pin));
-    DEVICE_ADDRESS |= (HAL_GPIO_ReadPin(ADDR2_GPIO_Port, ADDR2_Pin) << 1);
-    DEVICE_ADDRESS |= (HAL_GPIO_ReadPin(ADDR3_GPIO_Port, ADDR3_Pin) << 2);
-    DEVICE_ADDRESS |= (HAL_GPIO_ReadPin(ADDR4_GPIO_Port, ADDR4_Pin) << 3);
+    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR1_GPIO_Port, ADDR1_Pin));
+    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR2_GPIO_Port, ADDR2_Pin) << 1);
+    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR3_GPIO_Port, ADDR3_Pin) << 2);
+    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR4_GPIO_Port, ADDR4_Pin) << 3);
     DEVICE_ADDRESS += 0x6C;
 
+    // Organizando o array de acordo com a lista de registradores em regs.h
     for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
         inputRegistersMap[i*2] = &adcVoltageReads[i];
         inputRegistersMap[i*2 + 1] = &adcCurrentReads[i];
@@ -289,7 +297,7 @@ static void APP_UpdateReads(){
                     integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
                     decimalSpaces = 0;
                     convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
-                            voltageMovingAverage[i], MAX_ADC_READ,
+                            adcVoltageCalibrationMin[i], adcVoltageCalibrationMax[i],
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                     for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
                         if(convertedVoltageReads_V[i] > order){
@@ -308,9 +316,12 @@ static void APP_UpdateReads(){
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
                     integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
                     decimalSpaces = 0;
-                    convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
-                            currentMovingAverage[i], MAX_ADC_READ,
-                            MIN_CURRENT_READ, MAX_CURRENT_READ);
+                    APP_MovingAverageAddValue(adcCurrentReads[i], i);
+                    convertedCurrentReads_mA[i] = APP_ConvertCurrentReads(APP_MovingAverageGetValue(i), i);
+//                    convertedCurrentReads_mA[i] = APP_ConvertCurrentReads(adcCurrentReads[i], i);
+//                    convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
+//                            adcCurrentCalibrationMin[i], adcCurrentCalibrationMax[i],
+//                            MIN_CURRENT_READ, MAX_CURRENT_READ);
                     for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
                         if(convertedCurrentReads_mA[i] > order){
                             break;
@@ -325,6 +336,46 @@ static void APP_UpdateReads(){
                 break;
         }
         updateReadsCounter_ms = 0;
+        APP_StartAdcReadDma(!reading);
+    }
+}
+
+static void APP_MovingAverageAddValue(uint16_t value, uint8_t channel){
+    movingAverageBuffer[channel][movingAverageIndex[channel]++] = value;
+    if(movingAverageIndex[channel] >= MOVING_AVERAGE_BUFFER_SIZE){
+        movingAverageIndex[channel] = 0;
+    }
+}
+
+static uint16_t APP_MovingAverageGetValue(uint8_t channel){
+    uint32_t sum = 0;
+    for(uint8_t i = 0; i < MOVING_AVERAGE_BUFFER_SIZE; i++){
+        sum+=movingAverageBuffer[channel][i];
+    }
+    return sum/MOVING_AVERAGE_BUFFER_SIZE;
+}
+
+static void APP_MovingAverageClear(uint8_t channel){
+    for(uint8_t i = 0; i < MOVING_AVERAGE_BUFFER_SIZE; i++){
+        movingAverageBuffer[channel][i] = 0;
+    }
+    movingAverageIndex[channel] = 0;
+}
+
+static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel){
+    switch(channel){
+        case 0:
+            return ((float)value)*0.68 - 18.5;
+        case 1:
+            return ((float)value)*0.705 + 46.9;
+        case 2:
+            return ((float)value)*0.708 + 19.8;
+        case 3:
+            return ((float)value)*0.729 + 37.7;
+        default:
+            return UTILS_Map(value,
+                    0, 3025,
+                    MIN_CURRENT_READ, MAX_CURRENT_READ);
     }
 }
 // Adc reading functions //
@@ -643,39 +694,43 @@ static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseT
     STRING_AddCharString(String, buffer);
 }
 
-static void APP_CalibrateSensors(){
-    calibrateTime_ms = 1000;
-    while(calibrateTime_ms){
-        APP_StartAdcReadDma(!reading);
+static void APP_CalibrateSensorsMin(){
+    const uint16_t CALIBRATION_SAMPLES = 50;
+    uint32_t minValues[NUMBER_OF_CHANNELS] = {0};
+
+    reading = READ_VOLTAGE;
+    newReads = 0;
+    APP_StartAdcReadDma(reading);
+
+    for(uint16_t sample = 0; sample < CALIBRATION_SAMPLES; sample++){
+        for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+            if(newReads){
+                minValues[channel] += adcVoltageReads[channel];
+                newReads = 0;
+                APP_StartAdcReadDma(reading);
+            }
+        }
+    }
+    for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+        adcVoltageCalibrationMin[channel] = (float)minValues[channel]/(float)CALIBRATION_SAMPLES;
+        minValues[channel] = 0;
+    }
+
+    reading = READ_CURRENT;
+    APP_StartAdcReadDma(reading);
+
+    for(uint16_t sample = 0; sample < CALIBRATION_SAMPLES; sample++){
         if(newReads){
-            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                if(reading == READ_VOLTAGE){
-                    voltageMovingAverageBuffer[channel][voltageMovingAverageIndex[channel]++] = adcVoltageReads[channel];
-                    if(voltageMovingAverageIndex[channel] >= 100){
-                        voltageMovingAverageIndex[channel] = 0;
-                    }
-
-                    voltageMovingAverage[channel] = 0;
-                    for(uint16_t i = 0; i < SIZE_OF_MOVING_AVERAGE; i++){
-                        voltageMovingAverage[channel] += voltageMovingAverageBuffer[channel][i];
-                    }
-                    voltageMovingAverage[channel] /= 100;
-                }
-                else if(reading == READ_CURRENT){
-                    currentMovingAverageBuffer[channel][currentMovingAverageIndex[channel]++] = adcCurrentReads[channel];
-                    if(voltageMovingAverageIndex[channel] >= 100){
-                        voltageMovingAverageIndex[channel] = 0;
-                    }
-
-                    currentMovingAverage[channel] = 0;
-                    for(uint16_t i = 0; i < SIZE_OF_MOVING_AVERAGE; i++){
-                        currentMovingAverage[channel] += currentMovingAverageBuffer[channel][i];
-                    }
-                    currentMovingAverage[channel] /= 100;
-                }
+            for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                minValues[channel] += adcCurrentReads[channel];
             }
             newReads = 0;
+            APP_StartAdcReadDma(reading);
         }
+    }
+    for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+        adcCurrentCalibrationMin[channel] = (float)minValues[channel]/(float)CALIBRATION_SAMPLES;
+        minValues[channel] = 0;
     }
 }
 // Specific utility functions //
@@ -724,8 +779,6 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
             updateReadsCounter_ms++;
         if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS)
             modbusTimeBetweenByteCounter_ms++;
-        if(calibrateTime_ms)
-            calibrateTime_ms--;
 
         vLEDS_LedsTimerCallback();
     }
