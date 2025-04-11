@@ -49,7 +49,7 @@ float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 
 const uint16_t* inputRegistersMap[NUMBER_OF_CHANNELS*2] = {0};
 
-#define MOVING_AVERAGE_BUFFER_SIZE 20
+#define MOVING_AVERAGE_BUFFER_SIZE 10
 uint16_t movingAverageBuffer[NUMBER_OF_CHANNELS][MOVING_AVERAGE_BUFFER_SIZE] = {0};
 uint8_t movingAverageIndex[NUMBER_OF_CHANNELS] = {0};
 // ADC constants and buffers //
@@ -102,8 +102,11 @@ uint8_t modbusEnabled;
 // Modbus declarations //
 
 // Timer counters and periods // [Section]
+volatile uint32_t updateDisplayCounter_ms = 0;
+const uint32_t UPDATE_DISPLAY_PERIOD_MS = 50;
+
 volatile uint32_t updateReadsCounter_ms = 0;
-const uint32_t UPDATE_READS_PERIOD_MS = 10;
+const uint32_t UPDATE_READS_PERIOD_MS = 5;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 // Timer counters and periods //
@@ -125,6 +128,7 @@ static void APP_DisableSupplies(uint8_t supplyFlags);
 static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_InitModbus(void);
 static void APP_UpdateReads(void);
+static void APP_UpdateDisplay(void);
 static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel);
 static void APP_MovingAverageAddValue(uint16_t value, uint8_t channel);
 static uint16_t APP_MovingAverageGetValue(uint8_t channel);
@@ -180,6 +184,7 @@ void APP_poll(){
         return;
 
     APP_UpdateReads();
+    APP_UpdateDisplay();
 
     APP_TreatDisplayMessage();
     APP_TreatDebugMessage();
@@ -280,64 +285,78 @@ static void APP_UpdateReads(){
     if(!appStarted)
         return;
 
-    if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS)
-        return;
-
     if(!newReads && hadc1.State != HAL_ADC_STATE_REG_BUSY){
         APP_StartAdcReadDma(!reading);
     }
 
+    if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS){
+        return;
+    }
+
     if(newReads){
         newReads = 0;
-        uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-        uint16_t decimalSpaces = 0;
         switch(reading){
             case READ_VOLTAGE:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-                    decimalSpaces = 0;
                     convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
                             adcVoltageCalibrationMin[i], adcVoltageCalibrationMax[i],
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
-                    for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
-                        if(convertedVoltageReads_V[i] > order){
-                            break;
-                        }
-                        integerSpaces--;
-                        if(decimalSpaces < 2){
-                            decimalSpaces++;
-                        }
-                    }
-                    NEXTION_SetComponentFloatValue(&voltageTxtBx[i], convertedVoltageReads_V[i], integerSpaces, decimalSpaces);
                 }
                 break;
 
             case READ_CURRENT:
                 for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-                    decimalSpaces = 0;
                     APP_MovingAverageAddValue(adcCurrentReads[i], i);
                     convertedCurrentReads_mA[i] = APP_ConvertCurrentReads(APP_MovingAverageGetValue(i), i);
 //                    convertedCurrentReads_mA[i] = APP_ConvertCurrentReads(adcCurrentReads[i], i);
 //                    convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
 //                            adcCurrentCalibrationMin[i], adcCurrentCalibrationMax[i],
 //                            MIN_CURRENT_READ, MAX_CURRENT_READ);
-                    for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
-                        if(convertedCurrentReads_mA[i] > order){
-                            break;
-                        }
-                        integerSpaces--;
-                        if(decimalSpaces < 2){
-                            decimalSpaces++;
-                        }
-                    }
-                    NEXTION_SetComponentFloatValue(&currentTxtBx[i], convertedCurrentReads_mA[i], integerSpaces, decimalSpaces);
                 }
                 break;
         }
-        updateReadsCounter_ms = 0;
         APP_StartAdcReadDma(!reading);
     }
+}
+
+static void APP_UpdateDisplay(void){
+    if(updateDisplayCounter_ms < UPDATE_DISPLAY_PERIOD_MS){
+        return;
+    }
+
+    uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
+    uint16_t decimalSpaces = 0;
+    for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+        integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
+        decimalSpaces = 0;
+        for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
+            if(convertedVoltageReads_V[i] > order){
+                break;
+            }
+            integerSpaces--;
+            if(decimalSpaces < 2){
+                decimalSpaces++;
+            }
+        }
+        NEXTION_SetComponentFloatValue(&voltageTxtBx[i], convertedVoltageReads_V[i], integerSpaces, decimalSpaces);
+//            HAL_Delay(1);
+
+        integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
+        decimalSpaces = 0;
+        for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
+            if(convertedCurrentReads_mA[i] > order){
+                break;
+            }
+            integerSpaces--;
+            if(decimalSpaces < 2){
+                decimalSpaces++;
+            }
+        }
+        NEXTION_SetComponentFloatValue(&currentTxtBx[i], convertedCurrentReads_mA[i], integerSpaces, decimalSpaces);
+        HAL_Delay(1);
+    }
+
+    updateDisplayCounter_ms = 0;
 }
 
 static void APP_MovingAverageAddValue(uint16_t value, uint8_t channel){
@@ -365,16 +384,28 @@ static void APP_MovingAverageClear(uint8_t channel){
 static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel){
     switch(channel){
         case 0:
-            return ((float)value)*0.68 - 18.5;
+            return ((float)value)*0.705 - 0.0111;
         case 1:
-            return ((float)value)*0.705 + 46.9;
+            return ((float)value)*0.712 + 32.9;
         case 2:
-            return ((float)value)*0.708 + 19.8;
+            return ((float)value)*0.705 + 14.6;
         case 3:
-            return ((float)value)*0.729 + 37.7;
+            return ((float)value)*0.723 + 33.1;
+        case 4:
+            return ((float)value)*0.704 + 24.6;
+        case 5:
+            return ((float)value)*0.719 + 16.6;
+        case 6:
+            return ((float)value)*0.701 + 20.7;
+        case 7:
+            return ((float)value)*0.724 + 30.7;
+        case 8:
+            return ((float)value)*0.708 + 18.0;
+        case 9:
+            return ((float)value)*0.710 + 26.0;
         default:
             return UTILS_Map(value,
-                    0, 3025,
+                    0, 4095,
                     MIN_CURRENT_READ, MAX_CURRENT_READ);
     }
 }
@@ -775,10 +806,15 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
 
     // 1ms
     if(htim == &htim6){
-        if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS)
+        if(updateDisplayCounter_ms < UPDATE_DISPLAY_PERIOD_MS){
+            updateDisplayCounter_ms++;
+        }
+        if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS){
             updateReadsCounter_ms++;
-        if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS)
+        }
+        if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS){
             modbusTimeBetweenByteCounter_ms++;
+        }
 
         vLEDS_LedsTimerCallback();
     }
