@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "Leds/leds.h"
+#include "Modbus/registers.h"
 
 // ADC constants and buffers // [Section]
 #define NUMBER_OF_CHANNELS 10
@@ -49,9 +50,9 @@ float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 
 const uint16_t* inputRegistersMap[NUMBER_OF_CHANNELS*2] = {0};
 
-#define MOVING_AVERAGE_BUFFER_SIZE 10
-uint16_t movingAverageBuffer[NUMBER_OF_CHANNELS][MOVING_AVERAGE_BUFFER_SIZE] = {0};
-uint8_t movingAverageIndex[NUMBER_OF_CHANNELS] = {0};
+const uint8_t MOVING_AVERAGE_BUFFER_SIZE = 10;
+movingAverage_t currentMovingAverage[NUMBER_OF_CHANNELS];
+movingAverage_t voltageMovingAverage[NUMBER_OF_CHANNELS];
 // ADC constants and buffers //
 
 // Display constants // [Section]
@@ -130,9 +131,6 @@ static void APP_InitModbus(void);
 static void APP_UpdateReads(void);
 static void APP_UpdateDisplay(void);
 static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel);
-static void APP_MovingAverageAddValue(uint16_t value, uint8_t channel);
-static uint16_t APP_MovingAverageGetValue(uint8_t channel);
-static void APP_MovingAverageClear(uint8_t channel);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
 static void APP_SendPeriodicReads(void);
@@ -165,7 +163,8 @@ void APP_init(){
     APP_EnableModbus();
 
     for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-        APP_MovingAverageClear(channel);
+        UTILS_MovingAverageInit(&voltageMovingAverage[channel], MOVING_AVERAGE_BUFFER_SIZE);
+        UTILS_MovingAverageInit(&currentMovingAverage[channel], MOVING_AVERAGE_BUFFER_SIZE);
     }
     APP_StartAdcReadDma(READ_VOLTAGE);
 
@@ -297,21 +296,19 @@ static void APP_UpdateReads(){
         newReads = 0;
         switch(reading){
             case READ_VOLTAGE:
-                for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    convertedVoltageReads_V[i] = UTILS_Map(adcVoltageReads[i],
-                            adcVoltageCalibrationMin[i], adcVoltageCalibrationMax[i],
+                for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                    UTILS_MovingAverageAddValue(&voltageMovingAverage[channel], adcVoltageReads[channel]);
+                    convertedVoltageReads_V[channel] = UTILS_Map(UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]),
+                            adcVoltageCalibrationMin[channel], adcVoltageCalibrationMax[channel],
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
                 break;
 
             case READ_CURRENT:
-                for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-                    APP_MovingAverageAddValue(adcCurrentReads[i], i);
-                    convertedCurrentReads_mA[i] = APP_ConvertCurrentReads(APP_MovingAverageGetValue(i), i);
-//                    convertedCurrentReads_mA[i] = APP_ConvertCurrentReads(adcCurrentReads[i], i);
-//                    convertedCurrentReads_mA[i] = UTILS_Map(adcCurrentReads[i],
-//                            adcCurrentCalibrationMin[i], adcCurrentCalibrationMax[i],
-//                            MIN_CURRENT_READ, MAX_CURRENT_READ);
+                for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                    UTILS_MovingAverageAddValue(&currentMovingAverage[channel], adcCurrentReads[channel]);
+                    convertedCurrentReads_mA[channel] =
+                            APP_ConvertCurrentReads(UTILS_MovingAverageGetValue(&currentMovingAverage[channel]), channel);
                 }
                 break;
         }
@@ -339,7 +336,6 @@ static void APP_UpdateDisplay(void){
             }
         }
         NEXTION_SetComponentFloatValue(&voltageTxtBx[i], convertedVoltageReads_V[i], integerSpaces, decimalSpaces);
-//            HAL_Delay(1);
 
         integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
         decimalSpaces = 0;
@@ -359,29 +355,10 @@ static void APP_UpdateDisplay(void){
     updateDisplayCounter_ms = 0;
 }
 
-static void APP_MovingAverageAddValue(uint16_t value, uint8_t channel){
-    movingAverageBuffer[channel][movingAverageIndex[channel]++] = value;
-    if(movingAverageIndex[channel] >= MOVING_AVERAGE_BUFFER_SIZE){
-        movingAverageIndex[channel] = 0;
-    }
-}
-
-static uint16_t APP_MovingAverageGetValue(uint8_t channel){
-    uint32_t sum = 0;
-    for(uint8_t i = 0; i < MOVING_AVERAGE_BUFFER_SIZE; i++){
-        sum+=movingAverageBuffer[channel][i];
-    }
-    return sum/MOVING_AVERAGE_BUFFER_SIZE;
-}
-
-static void APP_MovingAverageClear(uint8_t channel){
-    for(uint8_t i = 0; i < MOVING_AVERAGE_BUFFER_SIZE; i++){
-        movingAverageBuffer[channel][i] = 0;
-    }
-    movingAverageIndex[channel] = 0;
-}
-
 static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel){
+    if(value < 50){
+        return 0;
+    }
     switch(channel){
         case 0:
             return ((float)value)*0.705 - 0.0111;
@@ -494,9 +471,12 @@ static void APP_TreatDebugMessage(){
 static void APP_TreatModbusMessage(){
     if(!modbusEnabled)
         return;
-    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS &&
+    if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS &&
             STRING_GetLength(&modbusLastMessage) > 0){
         STRING_Clear(&modbusLastMessage);
+        return;
+    }
+    if(RB_IsEmpty(&modbusRb)){
         return;
     }
 
@@ -506,8 +486,19 @@ static void APP_TreatModbusMessage(){
     };
     vLEDS_SetLedState(2, GPIO_PIN_RESET);
 
-    if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
-            == MODBUS_NO_ERROR){
+    modbusError_t messageError = MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage));
+    if(messageError == MODBUS_INCORRECT_CRC){
+        MODBUS_SendError(&modbusHandler, messageError);
+        STRING_Clear(&modbusLastMessage);
+        return;
+    }
+    if(messageError == MODBUS_INCOMPLETE_MESSAGE){
+        MODBUS_SendError(&modbusHandler, MODBUS_TIMEOUT);
+        STRING_Clear(&modbusLastMessage);
+        return;
+    }
+
+    if(messageError == MODBUS_NO_ERROR){
         MODBUS_UpdateHandler(&modbusHandler, STRING_GetBuffer(&modbusLastMessage));
         if(modbusHandler.requestId != DEVICE_ADDRESS){
             STRING_Clear(&modbusLastMessage);
@@ -517,18 +508,22 @@ static void APP_TreatModbusMessage(){
         uint8_t responseBuffer[100] = {0};
         uint16_t responseBufferIndex = 0;
         switch(modbusHandler.opcode){
-            case READ_COILS:
-                break;
             case READ_INPUT_REGISTERS:
+                if(modbusHandler.firstRegister + modbusHandler.qttRegisters > NUMBER_OF_INPUT_REGISTERS){
+                    MODBUS_SendError(&modbusHandler, MODBUS_ILLEGAL_DATA_ADDRESS);
+                    break;
+                }
+
                 for(uint8_t i = 0; i < modbusHandler.qttRegisters; i++){
                     responseBuffer[responseBufferIndex++] = (*inputRegistersMap[modbusHandler.firstRegister + i]) >> 8;
                     responseBuffer[responseBufferIndex++] = (*inputRegistersMap[modbusHandler.firstRegister + i]) & 0xFF;
                 }
+                MODBUS_SendResponse(&modbusHandler, responseBuffer, responseBufferIndex);
                 break;
             default:
+                MODBUS_SendError(&modbusHandler, MODBUS_ILLEGAL_FUNCTION);
                 break;
         }
-        MODBUS_SendResponse(&modbusHandler, responseBuffer, responseBufferIndex);
         STRING_Clear(&modbusLastMessage);
     }
 }

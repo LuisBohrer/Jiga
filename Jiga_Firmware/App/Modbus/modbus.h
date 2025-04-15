@@ -58,16 +58,24 @@ typedef enum enMODBUS_Opcodes{
 
 typedef enum enMODBUS_Error{
     MODBUS_NO_ERROR = 0,
-    MODBUS_INVALID_OPCODE,
-    MODBUS_RESPONSE_ERROR,
-    MODBUS_INVALID_REGISTER_ADDRESS,
-    MODBUS_TIMEOUT,
-    MODBUS_INCORRECT_ID,
+    MODBUS_ILLEGAL_FUNCTION,
+    MODBUS_ILLEGAL_DATA_ADDRESS,
+    MODBUS_ILLEGAL_DATA_VALUE,
+    MODBUS_SLAVE_DEVICE_FAILURE,
+    MODBUS_ACKNOWLEDGE,
+    MODBUS_SLAVE_DEVICE_BUSY,
+    MODBUS_NEGATIVE_ACKNOWLEDGE,
+    MODBUS_MEMORY_PARITY,
+    MODBUS_GATEWAY_PATH_UNAVAILABLE = 0x0A,
+    MODBUS_GATEWAY_TARGET_DEVICE_FAILED_TO_RESPOND,
+    MODBUS_TIMEOUT = 0x67,
+    MODBUS_INCORRECT_ID = 0X91,
     MODBUS_INCORRECT_OPCODE,
     MODBUS_INCORRECT_FIRST_REGISTER,
     MODBUS_INCORRECT_QTT_REGISTERS,
-    MODBUS_INCORRECT_CRC,
-    MODBUS_INVALID_MESSAGE,
+    MODBUS_RESPONSE_ERROR,
+    MODBUS_INCORRECT_CRC = 0x96,
+    MODBUS_INCOMPLETE_MESSAGE = 0xFF,
 } modbusError_t;
 
 typedef enum enMODBUS_RegisterBytes{
@@ -126,6 +134,7 @@ void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t s
 void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes, uint8_t *valuesToWrite);
 void MODBUS_SendResponse(modbusHandler_t *modbusHandler, uint8_t *responseBuffer, uint16_t responseBufferLength);
 void MODBUS_UpdateHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer);
+void MODBUS_SendError(modbusHandler_t *modbusHandler, modbusError_t error);
 
 // FUNCOES //
 

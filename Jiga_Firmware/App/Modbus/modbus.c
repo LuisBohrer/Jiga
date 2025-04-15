@@ -102,7 +102,7 @@ sendOrReceive_t MODBUS_GetSendReceive(modbusHandler_t *modbusHandler){
 
 modbusError_t MODBUS_VerifyMessage(uint8_t expectedSecondaryAddress, uint8_t expectedOpcode, uint16_t expectedFirstAdress, uint16_t expectedNumberOfData, uint8_t *messageBuffer, uint32_t messageLength){
     if(messageLength < 6){
-        return MODBUS_INVALID_MESSAGE;
+        return MODBUS_INCOMPLETE_MESSAGE;
     }
     if(expectedSecondaryAddress != messageBuffer[0]){
         return MODBUS_INCORRECT_ID;
@@ -128,7 +128,7 @@ modbusError_t MODBUS_VerifyMessage(uint8_t expectedSecondaryAddress, uint8_t exp
 
 modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer, uint32_t messageLength){
     if(messageLength < 6){
-        return MODBUS_INVALID_MESSAGE;
+        return MODBUS_INCOMPLETE_MESSAGE;
     }
     if(modbusHandler->requestId != messageBuffer[0]){
         return MODBUS_INCORRECT_ID;
@@ -154,7 +154,7 @@ modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *
 
 modbusError_t MODBUS_VerifyCrc(uint8_t *message, uint32_t length){
     if(length < 8){
-        return MODBUS_INVALID_MESSAGE;
+        return MODBUS_INCOMPLETE_MESSAGE;
     }
     if(HAL_CRC_Calculate(&hcrc, (uint32_t*) message, length - 2) != ((message[length - 1] << 8) | message[length - 2] )){
         return MODBUS_INCORRECT_CRC;
@@ -324,4 +324,17 @@ void MODBUS_UpdateHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer
     modbusHandler->firstRegister |= messageBuffer[3];
     modbusHandler->qttRegisters = messageBuffer[4] << 8;
     modbusHandler->qttRegisters |= messageBuffer[5];
+}
+
+void MODBUS_SendError(modbusHandler_t *modbusHandler, modbusError_t error){
+    MODBUS_ResetIndexes(modbusHandler);
+    MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_SEND);
+
+    MODBUS_SendByte(modbusHandler, modbusHandler->deviceAddress);
+    MODBUS_SendByte(modbusHandler, (uint8_t)modbusHandler->opcode + 0x80);
+    MODBUS_SendByte(modbusHandler, error);
+    MODBUS_CalculateCrc(modbusHandler);
+    MODBUS_SendShort(modbusHandler, modbusHandler->calculatedCRC);
+
+    MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
 }
