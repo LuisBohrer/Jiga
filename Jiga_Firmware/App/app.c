@@ -359,7 +359,7 @@ static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel){
     if(value < 50){
         return 0;
     }
-    switch(channel){
+    switch(channel){ // calibracao baseada nas medicoes experimentais
         case 0:
             return ((float)value)*0.705 - 0.0111;
         case 1:
@@ -412,12 +412,6 @@ static void APP_TreatDebugMessage(){
         debugRequest_t request = COMM_TreatResponse(&debugLastMessage);
         if(request == INCOMPLETE_REQUEST)
             return;
-
-        //        if(request == LOGS){
-        //            APP_SendLog();
-        //            STRING_Clear(&debugLastMessage);
-        //            return;
-        //        }
 
         COMM_SendStartPacket();
         switch(request){

@@ -22,6 +22,7 @@
 #include "crc.h"
 #include "dma.h"
 #include "i2c.h"
+#include "iwdg.h"
 #include "usart.h"
 #include "rtc.h"
 #include "spi.h"
@@ -104,6 +105,7 @@ int main(void)
   MX_TIM6_Init();
   MX_CRC_Init();
   MX_RTC_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
   APP_init();
   /* USER CODE END 2 */
@@ -112,6 +114,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+      HAL_IWDG_Refresh(&hiwdg);
       APP_poll();
     /* USER CODE END WHILE */
 
