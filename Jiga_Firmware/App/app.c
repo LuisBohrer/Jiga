@@ -27,13 +27,15 @@
 
 float adcVoltageCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
 float adcVoltageCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
-float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
-float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
+//float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
+//float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
+float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16};
+float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028, 4148, 4073, 4172, 4022, 4132, 4110};
 const float MIN_VOLTAGE_READ = 0;
 const float MAX_VOLTAGE_READ = 13.3; // V
 const float MIN_CURRENT_READ = 0;
-const float MAX_CURRENT_READ = 3025; // mA
-//const float MAX_CURRENT_READ = 2944; // mA
+//const float MAX_CURRENT_READ = 3025; // mA
+const float MAX_CURRENT_READ = 2944; // mA
 
 typedef enum{
     READ_VOLTAGE = 0,
@@ -43,9 +45,11 @@ volatile reading_t reading = READ_VOLTAGE;
 volatile uint8_t newReads = 0;
 
 uint16_t adcVoltageReads[NUMBER_OF_CHANNELS] = {0};
+uint16_t convertedVoltageReads_int[NUMBER_OF_CHANNELS] = {0};
 float convertedVoltageReads_V[NUMBER_OF_CHANNELS] = {0};
 
 uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
+uint16_t convertedCurrentReads_int[NUMBER_OF_CHANNELS] = {0};
 float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 
 const uint16_t* inputRegistersMap[NUMBER_OF_CHANNELS*2] = {0};
@@ -57,6 +61,10 @@ movingAverage_t voltageMovingAverage[NUMBER_OF_CHANNELS];
 
 // Display constants // [Section]
 const uint16_t NUMBER_OF_DIGITS_IN_BOX = 4;
+const string nextionStartBytes = {{'#', '#'}, 2};
+typedef enum nextionOpcodes_e{
+    SET_AS_MASTER = 0,
+} nextionOpcodes_t;
 // Display constants //
 
 // Uart declarations and buffers // [Section]
@@ -98,6 +106,7 @@ string modbusLastMessage;
 // Modbus declarations // [Section]
 modbusHandler_t modbusHandler;
 uint8_t DEVICE_ADDRESS = 0; // 0 representa o mestre
+uint8_t modbusMaster = 0; // flag para identificar o mestre
 const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500;
 uint8_t modbusEnabled;
 // Modbus declarations //
@@ -183,13 +192,15 @@ void APP_poll(){
         return;
 
     APP_UpdateReads();
-    APP_UpdateDisplay();
 
     APP_TreatDisplayMessage();
     APP_TreatDebugMessage();
     APP_TreatModbusMessage();
 
-    APP_SendReadsMinute();
+//    if(modbusMaster){
+        APP_UpdateDisplay();
+//    }
+//    APP_SendReadsMinute();
 
     UTILS_CpuSleep();
 }
@@ -271,8 +282,8 @@ static void APP_InitModbus(void){
 
     // Organizando o array de acordo com a lista de registradores em regs.h
     for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-        inputRegistersMap[i*2] = &adcVoltageReads[i];
-        inputRegistersMap[i*2 + 1] = &adcCurrentReads[i];
+        inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
+        inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
     }
 
     MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
@@ -298,8 +309,11 @@ static void APP_UpdateReads(){
             case READ_VOLTAGE:
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&voltageMovingAverage[channel], adcVoltageReads[channel]);
-                    convertedVoltageReads_V[channel] = UTILS_Map(UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]),
+                    convertedVoltageReads_int[channel] = UTILS_Map(UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]),
                             adcVoltageCalibrationMin[channel], adcVoltageCalibrationMax[channel],
+                            0, 4095);
+                    convertedVoltageReads_V[channel] = UTILS_Map(convertedVoltageReads_int[channel],
+                            0, 4095,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
                 break;
@@ -307,8 +321,11 @@ static void APP_UpdateReads(){
             case READ_CURRENT:
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&currentMovingAverage[channel], adcCurrentReads[channel]);
+                    convertedCurrentReads_int[channel] = UTILS_Map(UTILS_MovingAverageGetValue(&currentMovingAverage[channel]),
+                            adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
+                            0, 4095);
                     convertedCurrentReads_mA[channel] =
-                            APP_ConvertCurrentReads(UTILS_MovingAverageGetValue(&currentMovingAverage[channel]), channel);
+                            APP_ConvertCurrentReads(convertedCurrentReads_int[channel], channel);
                 }
                 break;
         }
@@ -356,35 +373,36 @@ static void APP_UpdateDisplay(void){
 }
 
 static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel){
-    if(value < 50){
+    if(value < 25){
         return 0;
     }
-    switch(channel){ // calibracao baseada nas medicoes experimentais
-        case 0:
-            return ((float)value)*0.705 - 0.0111;
-        case 1:
-            return ((float)value)*0.712 + 32.9;
-        case 2:
-            return ((float)value)*0.705 + 14.6;
-        case 3:
-            return ((float)value)*0.723 + 33.1;
-        case 4:
-            return ((float)value)*0.704 + 24.6;
-        case 5:
-            return ((float)value)*0.719 + 16.6;
-        case 6:
-            return ((float)value)*0.701 + 20.7;
-        case 7:
-            return ((float)value)*0.724 + 30.7;
-        case 8:
-            return ((float)value)*0.708 + 18.0;
-        case 9:
-            return ((float)value)*0.710 + 26.0;
-        default:
-            return UTILS_Map(value,
-                    0, 4095,
-                    MIN_CURRENT_READ, MAX_CURRENT_READ);
-    }
+//    switch(channel){ // calibracao baseada nas medicoes experimentais
+//        case 0:
+//            return ((float)value)*0.705 - 0.0111;
+//        case 1:
+//            return ((float)value)*0.712 + 32.9;
+//        case 2:
+//            return ((float)value)*0.705 + 14.6;
+//        case 3:
+//            return ((float)value)*0.723 + 33.1;
+//        case 4:
+//            return ((float)value)*0.704 + 24.6;
+//        case 5:
+//            return ((float)value)*0.719 + 16.6;
+//        case 6:
+//            return ((float)value)*0.701 + 20.7;
+//        case 7:
+//            return ((float)value)*0.724 + 30.7;
+//        case 8:
+//            return ((float)value)*0.708 + 18.0;
+//        case 9:
+//            return ((float)value)*0.710 + 26.0;
+//        default:
+//            return UTILS_Map(value,
+//                    0, 4095,
+//                    MIN_CURRENT_READ, MAX_CURRENT_READ);
+//    }
+    return (float)value*2944/4095;
 }
 // Adc reading functions //
 
@@ -397,8 +415,22 @@ static void APP_TreatDisplayMessage(){
     if(STRING_GetLength(&displayLastMessage) > 0){
         displayResponses_t aux = NEXTION_TreatMessage(&displayLastMessage);
 
-        if(aux != NO_MESSAGE){
+        if(aux == NO_MESSAGE || aux == INCOMPLETE_MESSAGE){
+            return;
+        }
+        if(aux != VALID_MESSAGE){
             STRING_Clear(&displayLastMessage);
+            return;
+        }
+        if(!STRING_CompareStrings(&displayLastMessage, &nextionStartBytes, STRING_GetLength(&nextionStartBytes))){
+            STRING_Clear(&displayLastMessage);
+            return;
+        }
+
+        if(STRING_GetChar(&displayLastMessage, 0) == SET_AS_MASTER){
+            DEVICE_ADDRESS = 0;
+            modbusMaster = 1;
+            MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
         }
     }
 }

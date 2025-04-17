@@ -18,7 +18,7 @@ uint8_t* STRING_GetBuffer(string *self){
     return self->buffer;
 }
 
-uint16_t STRING_GetLength(string *self){
+uint16_t STRING_GetLength(const string *self){
     return self->length;
 }
 

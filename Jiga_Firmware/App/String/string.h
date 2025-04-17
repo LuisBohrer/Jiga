@@ -19,7 +19,7 @@ typedef struct string {
 
 void STRING_Init(string *self);
 uint8_t* STRING_GetBuffer(string *self);
-uint16_t STRING_GetLength(string *self);
+uint16_t STRING_GetLength(const string *self);
 void STRING_AddChar(string *self, char character);
 void STRING_AddInt(string *self, int32_t number);
 void STRING_AddFloat(string *self, float number, uint32_t decimalSpaces, char separator);
