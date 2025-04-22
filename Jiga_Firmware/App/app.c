@@ -113,7 +113,7 @@ modbusHandler_t modbusHandler;
 uint8_t DEVICE_ADDRESS = 0; // 0 representa o mestre
 
 uint8_t modbusMaster = 0; // flag para identificar o mestre
-uint8_t modbusRequest = 1; // flag para realizar uma requisicao
+uint8_t modbusWaitingForResponse = 0;
 
 uint8_t modbusEnabled;
 // Modbus declarations //
@@ -127,6 +127,7 @@ const uint32_t UPDATE_READS_PERIOD_MS = 5;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500; // tempo maximo ate reconhecer como fim da mensagem
+const uint16_t MASTER_BUFFER_PERIOD = 1500; // tempo a mais esperado pelo mestre para receber uma resposta
 
 volatile uint32_t requestReadsCounter_ms = 0;
 const uint32_t REQUEST_READS_PERIOD_MS = 50; // tempo minimo de espera entre requisicoes
@@ -352,13 +353,12 @@ static void APP_RequestReads(void){
     if(!modbusMaster){
         return;
     }
-    if(!modbusRequest){
+    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS){
+        modbusWaitingForResponse = 0;
+    }
+    if(modbusWaitingForResponse){
         return;
     }
-    if(requestReadsCounter_ms < REQUEST_READS_PERIOD_MS){
-        return;
-    }
-    requestReadsCounter_ms = 0;
 
     static uint8_t slaveNumber = 0;
     MODBUS_ReadInputRegisters(&modbusHandler, 0x6C + slaveNumber, 0, 20);
@@ -368,7 +368,9 @@ static void APP_RequestReads(void){
         slaveNumber = 0;
     }
 
-    modbusRequest = 0;
+    modbusWaitingForResponse = 1;
+    requestReadsCounter_ms = 0;
+    modbusTimeBetweenByteCounter_ms = 0;
 }
 
 static void APP_UpdateDisplay(void){
@@ -441,9 +443,11 @@ static void APP_TreatDisplayMessage(){
 
         displayOpcodes_t opcode = STRING_GetChar(&displayLastMessage, 2);
         if(opcode == SET_AS_MASTER){
-            DEVICE_ADDRESS = 0;
-            modbusMaster = 1;
-            MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
+            if(!modbusMaster){
+                DEVICE_ADDRESS = 0;
+                modbusMaster = 1;
+                MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
+            }
         }
         STRING_Clear(&displayLastMessage);
     }
@@ -509,25 +513,31 @@ static void APP_TreatDebugMessage(){
 }
 
 static void APP_TreatModbusMessage(){
-    if(!modbusEnabled)
-        return;
-    if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS &&
-            STRING_GetLength(&modbusLastMessage) > 0){
-        STRING_Clear(&modbusLastMessage);
+    if(!modbusEnabled){
         return;
     }
-//    if(RB_IsEmpty(&modbusRb)){
-//        return;
-//    }
+    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS){
+        STRING_Clear(&modbusLastMessage);
+        modbusWaitingForResponse = 0;
+        vLEDS_SetLedState(2, GPIO_PIN_RESET);
+        return;
+    }
+    if(RB_IsEmpty(&modbusRb)){
+        return;
+    }
+    vLEDS_SetLedState(2, GPIO_PIN_SET);
 
     while(!RB_IsEmpty(&modbusRb)){
         STRING_AddChar(&modbusLastMessage, RB_GetByte(&modbusRb));
-        vLEDS_SetLedState(2, GPIO_PIN_SET);
-    };
+    }
+    if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
+            != MODBUS_NO_ERROR){
+        return;
+    }
 
     if(modbusMaster){
         APP_TreatSlaveResponse(&modbusLastMessage);
-        modbusRequest = 1;
+        modbusWaitingForResponse = 0;
     }
     else{
         if(STRING_GetLength(&modbusLastMessage) != 0){
@@ -586,12 +596,14 @@ static void APP_TreatSlaveResponse(string *response){
 
     switch(modbusHandler.opcode){
         case READ_INPUT_REGISTERS:
-            for(uint8_t i = 0; i < modbusHandler.qttBytes; i++){
-                if(modbusHandler.firstRegister + i % 2 == 0){
-                    convertedVoltageReads_int[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i] = modbusHandler.payloadBuffer[6 + i];
+            for(uint8_t i = 0; i < modbusHandler.qttRegisters; i++){
+                uint16_t incomingShort = STRING_GetChar(response, 3 + 2*i) << 8;
+                incomingShort |= STRING_GetChar(response, 3 + 2*i + 1);
+                if(modbusHandler.firstRegister + i%2 == 0){
+                    convertedVoltageReads_int[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i/2] = incomingShort;
                 }
                 else{
-                    convertedCurrentReads_int[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i] = modbusHandler.payloadBuffer[6 + i];
+                    convertedCurrentReads_int[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i/2] = incomingShort;
                 }
             }
             break;
@@ -879,7 +891,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
         if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS){
             updateReadsCounter_ms++;
         }
-        if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS){
+        if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD){
             modbusTimeBetweenByteCounter_ms++;
         }
         if(requestReadsCounter_ms < REQUEST_READS_PERIOD_MS){

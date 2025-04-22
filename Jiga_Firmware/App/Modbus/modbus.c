@@ -152,7 +152,7 @@ modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *
         return MODBUS_INCORRECT_QTT_BYTES;
     }
     uint16_t calculatedCrc = HAL_CRC_Calculate(&hcrc, (uint32_t*) messageBuffer, messageLength - 2);
-    calculatedCrc = calculatedCrc << 8 | calculatedCrc >> 8;
+    calculatedCrc = ((calculatedCrc << 8) & 0xFF00) | ((calculatedCrc >> 8) & 0xFF);
     if(calculatedCrc != ((messageBuffer[messageLength - 2] << 8) | messageBuffer[messageLength - 1])){
         return MODBUS_INCORRECT_CRC;
     }
@@ -317,8 +317,6 @@ void MODBUS_SendResponse(modbusHandler_t *modbusHandler, uint8_t *responseBuffer
 
     MODBUS_SendByte(modbusHandler, modbusHandler->deviceAddress);
     MODBUS_SendByte(modbusHandler, modbusHandler->opcode);
-//    MODBUS_SendShort(modbusHandler, modbusHandler->firstRegister);
-//    MODBUS_SendShort(modbusHandler, modbusHandler->qttRegisters);
     MODBUS_SendByte(modbusHandler, responseBufferLength);
     for(uint32_t i = 0; i < responseBufferLength; i++){
         MODBUS_SendByte(modbusHandler, responseBuffer[i]);
