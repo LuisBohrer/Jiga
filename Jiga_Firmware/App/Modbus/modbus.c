@@ -113,11 +113,14 @@ modbusError_t MODBUS_VerifyMessage(uint8_t expectedSecondaryAddress, uint8_t exp
     if(expectedOpcode != messageBuffer[1]){
         return MODBUS_INCORRECT_OPCODE;
     }
-    if(expectedFirstAdress != ((messageBuffer[2] << 8) | messageBuffer[3])){
-        return MODBUS_INCORRECT_FIRST_REGISTER;
-    }
-    if(expectedNumberOfData != ((messageBuffer[4] << 8) | messageBuffer[5])){
-        return MODBUS_INCORRECT_QTT_REGISTERS;
+//    if(expectedFirstAdress != ((messageBuffer[2] << 8) | messageBuffer[3])){
+//        return MODBUS_INCORRECT_FIRST_REGISTER;
+//    }
+//    if(expectedNumberOfData != ((messageBuffer[4] << 8) | messageBuffer[5])){
+//        return MODBUS_INCORRECT_QTT_REGISTERS;
+//    }
+    if(expectedNumberOfData*2 != messageBuffer[2]){
+        return MODBUS_INCORRECT_QTT_BYTES;
     }
     uint16_t calculatedCrc = HAL_CRC_Calculate(&hcrc, (uint32_t*) messageBuffer, messageLength - 2);
     if(calculatedCrc != ((messageBuffer[messageLength - 2] << 8) | messageBuffer[messageLength - 1])){
@@ -139,13 +142,17 @@ modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *
     if(modbusHandler->opcode != messageBuffer[1]){
         return MODBUS_INCORRECT_OPCODE;
     }
-    if(modbusHandler->firstRegister != ((messageBuffer[2] << 8) | messageBuffer[3])){
-        return MODBUS_INCORRECT_FIRST_REGISTER;
-    }
-    if(modbusHandler->qttRegisters != ((messageBuffer[4] << 8) | messageBuffer[5])){
-        return MODBUS_INCORRECT_QTT_REGISTERS;
+//    if(modbusHandler->firstRegister != ((messageBuffer[2] << 8) | messageBuffer[3])){
+//        return MODBUS_INCORRECT_FIRST_REGISTER;
+//    }
+//    if(modbusHandler->qttRegisters != ((messageBuffer[4] << 8) | messageBuffer[5])){
+//        return MODBUS_INCORRECT_QTT_REGISTERS;
+//    }
+    if(modbusHandler->qttBytes != messageBuffer[2]){
+        return MODBUS_INCORRECT_QTT_BYTES;
     }
     uint16_t calculatedCrc = HAL_CRC_Calculate(&hcrc, (uint32_t*) messageBuffer, messageLength - 2);
+    calculatedCrc = calculatedCrc << 8 | calculatedCrc >> 8;
     if(calculatedCrc != ((messageBuffer[messageLength - 2] << 8) | messageBuffer[messageLength - 1])){
         return MODBUS_INCORRECT_CRC;
     }
@@ -182,6 +189,12 @@ void MODBUS_ReadInputRegisters(modbusHandler_t *modbusHandler, uint8_t secondary
     MODBUS_ResetIndexes(modbusHandler);
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_SEND);
+
+    modbusHandler->requestId = secondaryAddress;
+    modbusHandler->opcode = READ_INPUT_REGISTERS;
+    modbusHandler->firstRegister = firstRegisterAddress;
+    modbusHandler->qttRegisters = numberOfRegisters;
+    modbusHandler->qttBytes = numberOfRegisters*2;
 
     MODBUS_SendByte(modbusHandler, secondaryAddress);
     MODBUS_SendByte(modbusHandler, READ_INPUT_REGISTERS);

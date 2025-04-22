@@ -31,6 +31,10 @@ float adcVoltageCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-
 //float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
 float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16};
 float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028, 4148, 4073, 4172, 4022, 4132, 4110};
+
+const uint16_t MIN_ADC_READ = 0;
+const uint16_t MAX_ADC_READ = 4095;
+
 const float MIN_VOLTAGE_READ = 0;
 const float MAX_VOLTAGE_READ = 13.3; // V
 const float MIN_CURRENT_READ = 0;
@@ -44,12 +48,13 @@ typedef enum{
 volatile reading_t reading = READ_VOLTAGE;
 volatile uint8_t newReads = 0;
 
+#define MODBUS_NUMBER_OF_DEVICES 2 // conta com o mestre
 uint16_t adcVoltageReads[NUMBER_OF_CHANNELS] = {0};
-uint16_t convertedVoltageReads_int[NUMBER_OF_CHANNELS] = {0};
+uint16_t convertedVoltageReads_int[MODBUS_NUMBER_OF_DEVICES][NUMBER_OF_CHANNELS] = {0};
 float convertedVoltageReads_V[NUMBER_OF_CHANNELS] = {0};
 
 uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
-uint16_t convertedCurrentReads_int[NUMBER_OF_CHANNELS] = {0};
+uint16_t convertedCurrentReads_int[MODBUS_NUMBER_OF_DEVICES][NUMBER_OF_CHANNELS] = {0};
 float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
 
 const uint16_t* inputRegistersMap[NUMBER_OF_CHANNELS*2] = {0};
@@ -64,7 +69,7 @@ const uint16_t NUMBER_OF_DIGITS_IN_BOX = 4;
 const string nextionStartBytes = {{'#', '#'}, 2};
 typedef enum nextionOpcodes_e{
     SET_AS_MASTER = 0,
-} nextionOpcodes_t;
+} displayOpcodes_t;
 // Display constants //
 
 // Uart declarations and buffers // [Section]
@@ -106,8 +111,10 @@ string modbusLastMessage;
 // Modbus declarations // [Section]
 modbusHandler_t modbusHandler;
 uint8_t DEVICE_ADDRESS = 0; // 0 representa o mestre
+
 uint8_t modbusMaster = 0; // flag para identificar o mestre
-const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500;
+uint8_t modbusRequest = 1; // flag para realizar uma requisicao
+
 uint8_t modbusEnabled;
 // Modbus declarations //
 
@@ -119,6 +126,10 @@ volatile uint32_t updateReadsCounter_ms = 0;
 const uint32_t UPDATE_READS_PERIOD_MS = 5;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
+const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500; // tempo maximo ate reconhecer como fim da mensagem
+
+volatile uint32_t requestReadsCounter_ms = 0;
+const uint32_t REQUEST_READS_PERIOD_MS = 50; // tempo minimo de espera entre requisicoes
 // Timer counters and periods //
 
 // Board supply enables declarations // [Section]
@@ -138,6 +149,7 @@ static void APP_DisableSupplies(uint8_t supplyFlags);
 static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_InitModbus(void);
 static void APP_UpdateReads(void);
+static void APP_RequestReads(void);
 static void APP_UpdateDisplay(void);
 static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel);
 static void APP_TreatDisplayMessage(void);
@@ -145,6 +157,8 @@ static void APP_SendLog(void);
 static void APP_SendPeriodicReads(void);
 static void APP_TreatDebugMessage(void);
 static void APP_TreatModbusMessage(void);
+static void APP_TreatMasterRequest(string *request);
+static void APP_TreatSlaveResponse(string *request);
 static void APP_EnableModbus(void);
 static void APP_DisableModbus(void);
 static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart);
@@ -197,9 +211,10 @@ void APP_poll(){
     APP_TreatDebugMessage();
     APP_TreatModbusMessage();
 
-//    if(modbusMaster){
+    if(modbusMaster){
         APP_UpdateDisplay();
-//    }
+        APP_RequestReads();
+    }
 //    APP_SendReadsMinute();
 
     UTILS_CpuSleep();
@@ -282,8 +297,8 @@ static void APP_InitModbus(void){
 
     // Organizando o array de acordo com a lista de registradores em regs.h
     for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-        inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
-        inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
+        inputRegistersMap[i*2] = &convertedVoltageReads_int[0][i];
+        inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[0][i];
     }
 
     MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
@@ -309,11 +324,11 @@ static void APP_UpdateReads(){
             case READ_VOLTAGE:
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&voltageMovingAverage[channel], adcVoltageReads[channel]);
-                    convertedVoltageReads_int[channel] = UTILS_Map(UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]),
+                    convertedVoltageReads_int[0][channel] = UTILS_Map(UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]),
                             adcVoltageCalibrationMin[channel], adcVoltageCalibrationMax[channel],
-                            0, 4095);
-                    convertedVoltageReads_V[channel] = UTILS_Map(convertedVoltageReads_int[channel],
-                            0, 4095,
+                            MIN_ADC_READ, MAX_ADC_READ);
+                    convertedVoltageReads_V[channel] = UTILS_Map(convertedVoltageReads_int[0][channel],
+                            MIN_ADC_READ, MAX_ADC_READ,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
                 break;
@@ -321,16 +336,39 @@ static void APP_UpdateReads(){
             case READ_CURRENT:
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&currentMovingAverage[channel], adcCurrentReads[channel]);
-                    convertedCurrentReads_int[channel] = UTILS_Map(UTILS_MovingAverageGetValue(&currentMovingAverage[channel]),
+                    convertedCurrentReads_int[0][channel] = UTILS_Map(UTILS_MovingAverageGetValue(&currentMovingAverage[channel]),
                             adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
-                            0, 4095);
+                            MIN_ADC_READ, MAX_ADC_READ);
                     convertedCurrentReads_mA[channel] =
-                            APP_ConvertCurrentReads(convertedCurrentReads_int[channel], channel);
+                            APP_ConvertCurrentReads(convertedCurrentReads_int[0][channel], channel);
                 }
                 break;
         }
         APP_StartAdcReadDma(!reading);
     }
+}
+
+static void APP_RequestReads(void){
+    if(!modbusMaster){
+        return;
+    }
+    if(!modbusRequest){
+        return;
+    }
+    if(requestReadsCounter_ms < REQUEST_READS_PERIOD_MS){
+        return;
+    }
+    requestReadsCounter_ms = 0;
+
+    static uint8_t slaveNumber = 0;
+    MODBUS_ReadInputRegisters(&modbusHandler, 0x6C + slaveNumber, 0, 20);
+
+    slaveNumber++;
+    if(slaveNumber >= MODBUS_NUMBER_OF_DEVICES){
+        slaveNumber = 0;
+    }
+
+    modbusRequest = 0;
 }
 
 static void APP_UpdateDisplay(void){
@@ -376,33 +414,7 @@ static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel){
     if(value < 25){
         return 0;
     }
-//    switch(channel){ // calibracao baseada nas medicoes experimentais
-//        case 0:
-//            return ((float)value)*0.705 - 0.0111;
-//        case 1:
-//            return ((float)value)*0.712 + 32.9;
-//        case 2:
-//            return ((float)value)*0.705 + 14.6;
-//        case 3:
-//            return ((float)value)*0.723 + 33.1;
-//        case 4:
-//            return ((float)value)*0.704 + 24.6;
-//        case 5:
-//            return ((float)value)*0.719 + 16.6;
-//        case 6:
-//            return ((float)value)*0.701 + 20.7;
-//        case 7:
-//            return ((float)value)*0.724 + 30.7;
-//        case 8:
-//            return ((float)value)*0.708 + 18.0;
-//        case 9:
-//            return ((float)value)*0.710 + 26.0;
-//        default:
-//            return UTILS_Map(value,
-//                    0, 4095,
-//                    MIN_CURRENT_READ, MAX_CURRENT_READ);
-//    }
-    return (float)value*2944/4095;
+    return UTILS_Map(value, MIN_ADC_READ, MAX_ADC_READ, MIN_CURRENT_READ, MAX_CURRENT_READ);
 }
 // Adc reading functions //
 
@@ -427,11 +439,13 @@ static void APP_TreatDisplayMessage(){
             return;
         }
 
-        if(STRING_GetChar(&displayLastMessage, 0) == SET_AS_MASTER){
+        displayOpcodes_t opcode = STRING_GetChar(&displayLastMessage, 2);
+        if(opcode == SET_AS_MASTER){
             DEVICE_ADDRESS = 0;
             modbusMaster = 1;
             MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
         }
+        STRING_Clear(&displayLastMessage);
     }
 }
 
@@ -502,32 +516,42 @@ static void APP_TreatModbusMessage(){
         STRING_Clear(&modbusLastMessage);
         return;
     }
-    if(RB_IsEmpty(&modbusRb)){
-        return;
-    }
+//    if(RB_IsEmpty(&modbusRb)){
+//        return;
+//    }
 
     while(!RB_IsEmpty(&modbusRb)){
         STRING_AddChar(&modbusLastMessage, RB_GetByte(&modbusRb));
         vLEDS_SetLedState(2, GPIO_PIN_SET);
     };
-    vLEDS_SetLedState(2, GPIO_PIN_RESET);
 
-    modbusError_t messageError = MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage));
+    if(modbusMaster){
+        APP_TreatSlaveResponse(&modbusLastMessage);
+        modbusRequest = 1;
+    }
+    else{
+        if(STRING_GetLength(&modbusLastMessage) != 0){
+            APP_TreatMasterRequest(&modbusLastMessage);
+        }
+    }
+    STRING_Clear(&modbusLastMessage);
+    vLEDS_SetLedState(2, GPIO_PIN_RESET);
+}
+
+static void APP_TreatMasterRequest(string *request){
+    modbusError_t messageError = MODBUS_VerifyCrc(STRING_GetBuffer(request), STRING_GetLength(request));
     if(messageError == MODBUS_INCORRECT_CRC){
-        MODBUS_SendError(&modbusHandler, messageError);
-        STRING_Clear(&modbusLastMessage);
+        MODBUS_SendError(&modbusHandler, MODBUS_INCORRECT_CRC);
         return;
     }
     if(messageError == MODBUS_INCOMPLETE_MESSAGE){
         MODBUS_SendError(&modbusHandler, MODBUS_TIMEOUT);
-        STRING_Clear(&modbusLastMessage);
         return;
     }
 
     if(messageError == MODBUS_NO_ERROR){
-        MODBUS_UpdateHandler(&modbusHandler, STRING_GetBuffer(&modbusLastMessage));
+        MODBUS_UpdateHandler(&modbusHandler, STRING_GetBuffer(request));
         if(modbusHandler.requestId != DEVICE_ADDRESS){
-            STRING_Clear(&modbusLastMessage);
             return;
         }
 
@@ -550,7 +574,29 @@ static void APP_TreatModbusMessage(){
                 MODBUS_SendError(&modbusHandler, MODBUS_ILLEGAL_FUNCTION);
                 break;
         }
+    }
+}
+
+static void APP_TreatSlaveResponse(string *response){
+    modbusError_t messageError = MODBUS_VerifyWithHandler(&modbusHandler, STRING_GetBuffer(response), STRING_GetLength(response));
+    if(messageError != MODBUS_NO_ERROR){
         STRING_Clear(&modbusLastMessage);
+        return;
+    }
+
+    switch(modbusHandler.opcode){
+        case READ_INPUT_REGISTERS:
+            for(uint8_t i = 0; i < modbusHandler.qttBytes; i++){
+                if(modbusHandler.firstRegister + i % 2 == 0){
+                    convertedVoltageReads_int[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i] = modbusHandler.payloadBuffer[6 + i];
+                }
+                else{
+                    convertedCurrentReads_int[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i] = modbusHandler.payloadBuffer[6 + i];
+                }
+            }
+            break;
+        default:
+            break;
     }
 }
 // Message treatment functions //
@@ -835,6 +881,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
         }
         if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS){
             modbusTimeBetweenByteCounter_ms++;
+        }
+        if(requestReadsCounter_ms < REQUEST_READS_PERIOD_MS){
+            requestReadsCounter_ms++;
         }
 
         vLEDS_LedsTimerCallback();
