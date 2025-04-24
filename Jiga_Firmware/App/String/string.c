@@ -167,8 +167,8 @@ uint8_t STRING_CompareStringsRev(const string *string1, const string *string2, u
     if(length > string2->length)
         length = string2->length;
     for(uint16_t i = 0; i < length; i++){
-        if(i <= string1->length || i <= string2->length)
-            return 1;
+//        if(i <= string1->length || i <= string2->length)
+//            return 1;
         if(string1->buffer[string1->length - i - 1] != string2->buffer[string2->length - i - 1]){
             return 0;
         }

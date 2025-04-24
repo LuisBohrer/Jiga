@@ -29,8 +29,10 @@ float adcVoltageCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-
 float adcVoltageCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
 //float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
 //float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
-float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16};
+float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16}; // led fraco
 float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028, 4148, 4073, 4172, 4022, 4132, 4110};
+//float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {16, 13, 20, 26, 20, 22, 16, 27, 19, 17}; // led forte
+//float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {3951, 3939, 3949, 3947, 3946, 3942, 3949, 3948, 3944, 3937};
 
 const uint16_t MIN_ADC_READ = 0;
 const uint16_t MAX_ADC_READ = 4095;
@@ -50,12 +52,12 @@ volatile uint8_t newReads = 0;
 
 #define MODBUS_NUMBER_OF_DEVICES 2 // conta com o mestre
 uint16_t adcVoltageReads[NUMBER_OF_CHANNELS] = {0};
-uint16_t convertedVoltageReads_int[MODBUS_NUMBER_OF_DEVICES][NUMBER_OF_CHANNELS] = {0};
-float convertedVoltageReads_V[NUMBER_OF_CHANNELS] = {0};
+uint16_t convertedVoltageReads_int[NUMBER_OF_CHANNELS] = {0};
+float convertedVoltageReads_V[MODBUS_NUMBER_OF_DEVICES][NUMBER_OF_CHANNELS] = {0};
 
 uint16_t adcCurrentReads[NUMBER_OF_CHANNELS] = {0};
-uint16_t convertedCurrentReads_int[MODBUS_NUMBER_OF_DEVICES][NUMBER_OF_CHANNELS] = {0};
-float convertedCurrentReads_mA[NUMBER_OF_CHANNELS] = {0};
+uint16_t convertedCurrentReads_int[NUMBER_OF_CHANNELS] = {0};
+float convertedCurrentReads_mA[MODBUS_NUMBER_OF_DEVICES][NUMBER_OF_CHANNELS] = {0};
 
 const uint16_t* inputRegistersMap[NUMBER_OF_CHANNELS*2] = {0};
 
@@ -199,7 +201,7 @@ void APP_init(){
     vLEDS_SetLedState(1, GPIO_PIN_SET);
     vLEDS_SetLedState(2, GPIO_PIN_RESET);
     appStarted = 1;
-//    APP_CalibrateSensorsMin();
+    //    APP_CalibrateSensorsMin();
 }
 
 void APP_poll(){
@@ -216,7 +218,7 @@ void APP_poll(){
         APP_UpdateDisplay();
         APP_RequestReads();
     }
-//    APP_SendReadsMinute();
+    //    APP_SendReadsMinute();
 
     UTILS_CpuSleep();
 }
@@ -298,8 +300,8 @@ static void APP_InitModbus(void){
 
     // Organizando o array de acordo com a lista de registradores em regs.h
     for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-        inputRegistersMap[i*2] = &convertedVoltageReads_int[0][i];
-        inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[0][i];
+        inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
+        inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
     }
 
     MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
@@ -325,10 +327,10 @@ static void APP_UpdateReads(){
             case READ_VOLTAGE:
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&voltageMovingAverage[channel], adcVoltageReads[channel]);
-                    convertedVoltageReads_int[0][channel] = UTILS_Map(UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]),
+                    convertedVoltageReads_int[channel] = UTILS_Map(UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]),
                             adcVoltageCalibrationMin[channel], adcVoltageCalibrationMax[channel],
                             MIN_ADC_READ, MAX_ADC_READ);
-                    convertedVoltageReads_V[channel] = UTILS_Map(convertedVoltageReads_int[0][channel],
+                    convertedVoltageReads_V[0][channel] = UTILS_Map(convertedVoltageReads_int[channel],
                             MIN_ADC_READ, MAX_ADC_READ,
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
@@ -337,11 +339,17 @@ static void APP_UpdateReads(){
             case READ_CURRENT:
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&currentMovingAverage[channel], adcCurrentReads[channel]);
-                    convertedCurrentReads_int[0][channel] = UTILS_Map(UTILS_MovingAverageGetValue(&currentMovingAverage[channel]),
-                            adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
-                            MIN_ADC_READ, MAX_ADC_READ);
-                    convertedCurrentReads_mA[channel] =
-                            APP_ConvertCurrentReads(convertedCurrentReads_int[0][channel], channel);
+                    uint16_t currentAverage = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+                    if(currentAverage < 35){
+                        convertedCurrentReads_int[channel] = 0;
+                    }
+                    else{
+                        convertedCurrentReads_int[channel] = UTILS_Map(currentAverage,
+                                adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
+                                MIN_ADC_READ, MAX_ADC_READ);
+                    }
+                    convertedCurrentReads_mA[0][channel] =
+                            APP_ConvertCurrentReads(convertedCurrentReads_int[channel], channel);
                 }
                 break;
         }
@@ -359,12 +367,12 @@ static void APP_RequestReads(void){
     if(modbusWaitingForResponse){
         return;
     }
+    STRING_Clear(&modbusLastMessage);
 
     static uint8_t slaveNumber = 0;
     MODBUS_ReadInputRegisters(&modbusHandler, 0x6C + slaveNumber, 0, 20);
 
-    slaveNumber++;
-    if(slaveNumber >= MODBUS_NUMBER_OF_DEVICES){
+    if(++slaveNumber >= MODBUS_NUMBER_OF_DEVICES){
         slaveNumber = 0;
     }
 
@@ -380,40 +388,52 @@ static void APP_UpdateDisplay(void){
 
     uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
     uint16_t decimalSpaces = 0;
-    for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-        integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-        decimalSpaces = 0;
-        for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
-            if(convertedVoltageReads_V[i] > order){
-                break;
+    for(uint8_t placa = 0; placa < MODBUS_NUMBER_OF_DEVICES; placa++){
+        for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+            integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
+            decimalSpaces = 0;
+            for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
+                if(convertedVoltageReads_V[placa][i] > order){
+                    break;
+                }
+                integerSpaces--;
+                if(decimalSpaces < 2){
+                    decimalSpaces++;
+                }
             }
-            integerSpaces--;
-            if(decimalSpaces < 2){
-                decimalSpaces++;
+            if(placa == 0){
+                NEXTION_SetComponentFloatValue(&voltageTxtBx1[i], convertedVoltageReads_V[placa][i], integerSpaces, decimalSpaces);
             }
-        }
-        NEXTION_SetComponentFloatValue(&voltageTxtBx1[i], convertedVoltageReads_V[i], integerSpaces, decimalSpaces);
+            else{
+                NEXTION_SetComponentFloatValue(&voltageTxtBx2[i], convertedVoltageReads_V[placa][i], integerSpaces, decimalSpaces);
+            }
 
-        integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-        decimalSpaces = 0;
-        for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
-            if(convertedCurrentReads_mA[i] > order){
-                break;
+            integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
+            decimalSpaces = 0;
+            for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
+                if(convertedCurrentReads_mA[placa][i] > order){
+                    break;
+                }
+                integerSpaces--;
+                if(decimalSpaces < 2){
+                    decimalSpaces++;
+                }
             }
-            integerSpaces--;
-            if(decimalSpaces < 2){
-                decimalSpaces++;
+            if(placa == 0){
+                NEXTION_SetComponentFloatValue(&currentTxtBx1[i], convertedCurrentReads_mA[placa][i], integerSpaces, decimalSpaces);
             }
+            else{
+                NEXTION_SetComponentFloatValue(&currentTxtBx2[i], convertedCurrentReads_mA[placa][i], integerSpaces, decimalSpaces);
+            }
+            HAL_Delay(1);
         }
-        NEXTION_SetComponentFloatValue(&currentTxtBx1[i], convertedCurrentReads_mA[i], integerSpaces, decimalSpaces);
-        HAL_Delay(1);
     }
 
     updateDisplayCounter_ms = 0;
 }
 
 static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel){
-    if(value < 25){
+    if(value < 35){
         return 0;
     }
     return UTILS_Map(value, MIN_ADC_READ, MAX_ADC_READ, MIN_CURRENT_READ, MAX_CURRENT_READ);
@@ -425,32 +445,34 @@ static void APP_TreatDisplayMessage(){
     while(!RB_IsEmpty(&displayRb)){
         STRING_AddChar(&displayLastMessage, RB_GetByte(&displayRb));
     }
-
-    if(STRING_GetLength(&displayLastMessage) > 0){
-        displayResponses_t aux = NEXTION_TreatMessage(&displayLastMessage);
-
-        if(aux == NO_MESSAGE || aux == INCOMPLETE_MESSAGE){
-            return;
-        }
-        if(aux != VALID_MESSAGE){
-            STRING_Clear(&displayLastMessage);
-            return;
-        }
-        if(!STRING_CompareStrings(&displayLastMessage, &nextionStartBytes, STRING_GetLength(&nextionStartBytes))){
-            STRING_Clear(&displayLastMessage);
-            return;
-        }
-
-        displayOpcodes_t opcode = STRING_GetChar(&displayLastMessage, 2);
-        if(opcode == SET_AS_MASTER){
-            if(!modbusMaster){
-                DEVICE_ADDRESS = 0;
-                modbusMaster = 1;
-                MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
-            }
-        }
-        STRING_Clear(&displayLastMessage);
+    RB_ClearBuffer(&displayRb);
+    if(STRING_GetLength(&displayLastMessage) <= 0){
+        return;
     }
+
+    displayResponses_t aux = NEXTION_TreatMessage(&displayLastMessage);
+
+    if(aux == NO_MESSAGE || aux == INCOMPLETE_MESSAGE){
+        return;
+    }
+    if(aux != VALID_MESSAGE){
+        STRING_Clear(&displayLastMessage);
+        return;
+    }
+    if(!STRING_CompareStrings(&displayLastMessage, &nextionStartBytes, STRING_GetLength(&nextionStartBytes))){
+        STRING_Clear(&displayLastMessage);
+        return;
+    }
+
+    displayOpcodes_t opcode = STRING_GetChar(&displayLastMessage, 2);
+    if(opcode == SET_AS_MASTER){
+        if(!modbusMaster){
+            DEVICE_ADDRESS = 0;
+            modbusMaster = 1;
+            MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
+        }
+    }
+    STRING_Clear(&displayLastMessage);
 }
 
 static void APP_TreatDebugMessage(){
@@ -530,6 +552,7 @@ static void APP_TreatModbusMessage(){
     while(!RB_IsEmpty(&modbusRb)){
         STRING_AddChar(&modbusLastMessage, RB_GetByte(&modbusRb));
     }
+    RB_ClearBuffer(&modbusRb);
     if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
             != MODBUS_NO_ERROR){
         return;
@@ -600,16 +623,19 @@ static void APP_TreatSlaveResponse(string *response){
                 uint16_t incomingShort = STRING_GetChar(response, 3 + 2*i) << 8;
                 incomingShort |= STRING_GetChar(response, 3 + 2*i + 1);
                 if(modbusHandler.firstRegister + i%2 == 0){
-                    convertedVoltageReads_int[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i/2] = incomingShort;
+                    convertedVoltageReads_V[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i/2] =
+                            UTILS_Map(incomingShort, MIN_ADC_READ, MAX_ADC_READ, MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
                 else{
-                    convertedCurrentReads_int[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i/2] = incomingShort;
+                    convertedCurrentReads_mA[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i/2] =
+                            UTILS_Map(incomingShort, MIN_ADC_READ, MAX_ADC_READ, MIN_CURRENT_READ, MAX_CURRENT_READ);
                 }
             }
             break;
         default:
             break;
     }
+    STRING_Clear(&modbusLastMessage);
 }
 // Message treatment functions //
 
@@ -700,7 +726,7 @@ static void APP_SendLog(){
     for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
         STRING_AddCharString(&logMessage, "\n\r");
         uint8_t line[100] = {'\0'};
-        uint8_t length = sprintf((char*)line, "[LOG] Read %d: Voltage = %.2f V ; Current = %.2f mA\n\r", i, convertedVoltageReads_V[i], convertedCurrentReads_mA[i]);
+        uint8_t length = sprintf((char*)line, "[LOG] Read %d: Voltage = %.2f V ; Current = %.2f mA\n\r", i, convertedVoltageReads_V[0][i], convertedCurrentReads_mA[0][i]);
         COMM_SendChar(line, length);
     }
     COMM_SendEndPacket();
@@ -717,7 +743,7 @@ static void APP_SendPeriodicReads(){
     for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
         STRING_Init(&message);
         char line[100] = {'\0'};
-        sprintf(line, "Read %d: Voltage = %.2f V ; Current = %.2f mA", i, convertedVoltageReads_V[i], convertedCurrentReads_mA[i]);
+        sprintf(line, "Read %d: Voltage = %.2f V ; Current = %.2f mA", i, convertedVoltageReads_V[0][i], convertedCurrentReads_mA[0][i]);
         STRING_AddCharString(&message, line);
         STRING_AddCharString(&message, "\n\r");
         COMM_SendString(&message);
@@ -851,20 +877,21 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-    if(!appStarted)
-        return;
-
     HAL_StatusTypeDef status;
 
     if(huart == DISPLAY_UART){
-        RB_PutByte(&displayRb, displayLastChar);
+        if(appStarted){
+            RB_PutByte(&displayRb, displayLastChar);
+        }
         do{
             status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
         } while(status != HAL_OK);
     }
 
     else if(huart == DEBUG_UART){
-        RB_PutByte(&debugRb, debugLastChar);
+        if(appStarted){
+            RB_PutByte(&debugRb, debugLastChar);
+        }
         do{
             status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
         } while(status != HAL_OK);
@@ -872,7 +899,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
 
     else if(huart == MODBUS_UART){
         modbusTimeBetweenByteCounter_ms = 0;
-        RB_PutByte(&modbusRb, modbusLastChar);
+        if(appStarted){
+            RB_PutByte(&modbusRb, modbusLastChar);
+        }
         do{
             status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
         } while(status != HAL_OK);

@@ -81,7 +81,7 @@ static void MODBUS_SendLong(modbusHandler_t *modbusHandler, uint32_t longValue){
 static inline void MODBUS_CalculateCrc(modbusHandler_t *modbusHandler){
     modbusHandler->calculatedCRC = (uint16_t) HAL_CRC_Calculate(&hcrc,
             (uint32_t*)modbusHandler->payloadBuffer, modbusHandler->payloadIndex);
-    modbusHandler->calculatedCRC = modbusHandler->calculatedCRC << 8 | modbusHandler->calculatedCRC >> 8;
+    modbusHandler->calculatedCRC = ((modbusHandler->calculatedCRC << 8) & 0xFF00) | ((modbusHandler->calculatedCRC >> 8) & 0xFF);
 }
 
 void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendOrReceive){
@@ -203,6 +203,7 @@ void MODBUS_ReadInputRegisters(modbusHandler_t *modbusHandler, uint8_t secondary
 
     MODBUS_CalculateCrc(modbusHandler);
     MODBUS_SendShort(modbusHandler, modbusHandler->calculatedCRC);
+    MODBUS_ResetIndexes(modbusHandler);
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
 }
