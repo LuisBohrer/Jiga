@@ -392,7 +392,7 @@ static void APP_UpdateDisplay(void){
                 decimalSpaces++;
             }
         }
-        NEXTION_SetComponentFloatValue(&voltageTxtBx[i], convertedVoltageReads_V[i], integerSpaces, decimalSpaces);
+        NEXTION_SetComponentFloatValue(&voltageTxtBx1[i], convertedVoltageReads_V[i], integerSpaces, decimalSpaces);
 
         integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
         decimalSpaces = 0;
@@ -405,7 +405,7 @@ static void APP_UpdateDisplay(void){
                 decimalSpaces++;
             }
         }
-        NEXTION_SetComponentFloatValue(&currentTxtBx[i], convertedCurrentReads_mA[i], integerSpaces, decimalSpaces);
+        NEXTION_SetComponentFloatValue(&currentTxtBx1[i], convertedCurrentReads_mA[i], integerSpaces, decimalSpaces);
         HAL_Delay(1);
     }
 

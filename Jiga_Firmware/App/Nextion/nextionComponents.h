@@ -10,7 +10,7 @@
 
 #include "String/string.h"
 
-extern const string voltageTxtBx[10];
-extern const string currentTxtBx[10];
+extern const string voltageTxtBx1[10];
+extern const string currentTxtBx1[10];
 
 #endif /* NEXTION_NEXTIONCOMPONENTS_H_ */

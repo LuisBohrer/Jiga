@@ -8,28 +8,28 @@
 #include "Nextion/nextionComponents.h"
 #include "String/string.h"
 
-const string voltageTxtBx[10] = {
-        {"bxTensao0", 12},
-        {"bxTensao1", 12},
-        {"bxTensao2", 12},
-        {"bxTensao3", 12},
-        {"bxTensao4", 12},
-        {"bxTensao5", 12},
-        {"bxTensao6", 12},
-        {"bxTensao7", 12},
-        {"bxTensao8", 12},
-        {"bxTensao9", 12}
+const string voltageTxtBx1[10] = {
+        {"bx1_Tensao0", 12},
+        {"bx1_Tensao1", 12},
+        {"bx1_Tensao2", 12},
+        {"bx1_Tensao3", 12},
+        {"bx1_Tensao4", 12},
+        {"bx1_Tensao5", 12},
+        {"bx1_Tensao6", 12},
+        {"bx1_Tensao7", 12},
+        {"bx1_Tensao8", 12},
+        {"bx1_Tensao9", 12}
 };
 
-const string currentTxtBx[10] = {
-        {"bxCorrente0", 14},
-        {"bxCorrente1", 14},
-        {"bxCorrente2", 14},
-        {"bxCorrente3", 14},
-        {"bxCorrente4", 14},
-        {"bxCorrente5", 14},
-        {"bxCorrente6", 14},
-        {"bxCorrente7", 14},
-        {"bxCorrente8", 14},
-        {"bxCorrente9", 14}
+const string currentTxtBx1[10] = {
+        {"bx1_Corrente0", 14},
+        {"bx1_Corrente1", 14},
+        {"bx1_Corrente2", 14},
+        {"bx1_Corrente3", 14},
+        {"bx1_Corrente4", 14},
+        {"bx1_Corrente5", 14},
+        {"bx1_Corrente6", 14},
+        {"bx1_Corrente7", 14},
+        {"bx1_Corrente8", 14},
+        {"bx1_Corrente9", 14}
 };
