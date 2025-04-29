@@ -21,6 +21,9 @@
 #include <math.h>
 #include "Leds/leds.h"
 #include "Modbus/registers.h"
+#include "Eeprom/eeprom.h"
+#include "Eeprom/memoryMap.h"
+#include "i2c.h"
 
 // ADC constants and buffers // [Section]
 #define NUMBER_OF_CHANNELS 10
@@ -154,7 +157,6 @@ static void APP_InitModbus(void);
 static void APP_UpdateReads(void);
 static void APP_RequestReads(void);
 static void APP_UpdateDisplay(void);
-static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
 static void APP_SendPeriodicReads(void);
@@ -171,7 +173,6 @@ static void APP_SendReadsMinute(void);
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
 static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, uint8_t year);
 static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime);
-static void APP_CalibrateSensorsMin(void);
 // Static function declarations //
 
 // Application functions // [Section]
@@ -191,6 +192,11 @@ void APP_init(){
     for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
         UTILS_MovingAverageInit(&voltageMovingAverage[channel], MOVING_AVERAGE_BUFFER_SIZE);
         UTILS_MovingAverageInit(&currentMovingAverage[channel], MOVING_AVERAGE_BUFFER_SIZE);
+
+        EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t));
+        EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t));
+        EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t));
+        EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t));
     }
     APP_StartAdcReadDma(READ_VOLTAGE);
 
@@ -469,86 +475,99 @@ static void APP_TreatDebugMessage(){
     while(!RB_IsEmpty(&debugRb)){
         STRING_AddChar(&debugLastMessage, RB_GetByte(&debugRb));
     }
-
-    if(STRING_GetLength(&debugLastMessage) > 0){
-        debugRequest_t request = COMM_TreatResponse(&debugLastMessage);
-        if(request == INCOMPLETE_REQUEST)
-            return;
-
-        COMM_SendStartPacket();
-        switch(request){
-            case INVALID_REQUEST:
-                COMM_SendAck(NACK);
-                break;
-
-            case SEND_VOLTAGE_READS:
-                COMM_SendAck(ACK_VOLTAGE_READS);
-                uint8_t length = NUMBER_OF_CHANNELS*2; // 2 bytes por leitura
-                COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
-                break;
-
-            case SEND_CURRENT_READS:
-                COMM_SendAck(ACK_CURRENT_READS);
-                uint8_t length = NUMBER_OF_CHANNELS*2; // 2 bytes por leitura
-                COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
-                break;
-
-            case SEND_ALL_READS:
-                uint8_t length = NUMBER_OF_CHANNELS*2*2; // 2 bytes por leitura e 2 tipos de leitura
-                COMM_SendAck(ACK_ALL_READS);
-                COMM_SendChar(&length, 1);
-                COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
-                COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
-                break;
-
-            case SET_MODBUS_CONFIG:
-                COMM_SendAck(ACK_MODBUS_CONFIG);
-                APP_UpdateUartConfigs(MODBUS_UART,
-                        &modbusLastChar,
-                        STRING_GetChar(&debugLastMessage, 3),
-                        STRING_GetChar(&debugLastMessage, 4),
-                        STRING_GetChar(&debugLastMessage, 5));
-                break;
-
-            case CALIBRATE_VOLTAGE_MIN:
-                COMM_SendAck(ACK_CHANGE_SCALE);
-                for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                    adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
-                }
-                break;
-
-            case CALIBRATE_VOLTAGE_MAX:
-                COMM_SendAck(ACK_CHANGE_SCALE);
-                for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                    adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
-                }
-                break;
-
-            case CALIBRATE_CURRENT_MIN:
-                COMM_SendAck(ACK_CHANGE_SCALE);
-                for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                    adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
-                }
-                break;
-
-            case CALIBRATE_CURRENT_MAX:
-                COMM_SendAck(ACK_CHANGE_SCALE);
-                for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                    adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
-                }
-                break;
-
-            case LOGS:
-                COMM_SendAck(ACK_LOGS);
-                APP_SendLog();
-                break;
-
-            default:
-                COMM_SendAck(NACK);
-                break;
-        }
-        COMM_SendEndPacket();
+    if(STRING_GetLength(&debugLastMessage) <= 0){
+        return;
     }
+
+    debugRequest_t request = COMM_TreatResponse(&debugLastMessage);
+    uint8_t length = 0;
+    if(request == INCOMPLETE_REQUEST)
+        return;
+
+    COMM_SendStartPacket();
+    switch(request){
+        case INVALID_REQUEST:
+            COMM_SendAck(NACK);
+            break;
+
+        case SEND_VOLTAGE_READS:
+            length = sizeof(convertedVoltageReads_int)/sizeof(convertedVoltageReads_int[0]);
+            COMM_SendAck(ACK_VOLTAGE_READS);
+            COMM_SendChar(&length, 1);
+            COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
+            break;
+
+        case SEND_CURRENT_READS:
+            length = sizeof(convertedCurrentReads_int)/sizeof(convertedCurrentReads_int[0]);
+            COMM_SendAck(ACK_CURRENT_READS);
+            COMM_SendChar(&length, 1);
+            COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
+            break;
+
+        case SEND_ALL_READS:
+            length = sizeof(convertedVoltageReads_int)/sizeof(convertedVoltageReads_int[0])
+                    + sizeof(convertedCurrentReads_int)/sizeof(convertedCurrentReads_int[0]);
+            COMM_SendAck(ACK_ALL_READS);
+            COMM_SendChar(&length, 1);
+            COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
+            COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
+            break;
+
+        case SET_MODBUS_CONFIG:
+            COMM_SendAck(ACK_MODBUS_CONFIG);
+            APP_UpdateUartConfigs(MODBUS_UART,
+                    &modbusLastChar,
+                    STRING_GetChar(&debugLastMessage, 3),
+                    STRING_GetChar(&debugLastMessage, 4),
+                    STRING_GetChar(&debugLastMessage, 5));
+            break;
+
+        case CALIBRATE_VOLTAGE_MIN:
+            COMM_SendAck(ACK_CHANGE_SCALE);
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+            }
+            length = sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t);
+            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, length);
+            break;
+
+        case CALIBRATE_VOLTAGE_MAX:
+            COMM_SendAck(ACK_CHANGE_SCALE);
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+            }
+            length = sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t);
+            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, length);
+            break;
+
+        case CALIBRATE_CURRENT_MIN:
+            COMM_SendAck(ACK_CHANGE_SCALE);
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+            }
+            length = sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t);
+            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, length);
+            break;
+
+        case CALIBRATE_CURRENT_MAX:
+            COMM_SendAck(ACK_CHANGE_SCALE);
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+            }
+            length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
+            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, length);
+            break;
+
+        case LOGS:
+            COMM_SendAck(ACK_LOGS);
+            APP_SendLog();
+            break;
+
+        default:
+            COMM_SendAck(NACK);
+            break;
+    }
+    COMM_SendEndPacket();
     STRING_Clear(&debugLastMessage);
 }
 
