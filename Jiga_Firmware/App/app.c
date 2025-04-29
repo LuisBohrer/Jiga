@@ -25,12 +25,12 @@
 // ADC constants and buffers // [Section]
 #define NUMBER_OF_CHANNELS 10
 
-float adcVoltageCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
-float adcVoltageCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
+uint16_t adcVoltageCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
+uint16_t adcVoltageCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
 //float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
 //float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
-float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16}; // led fraco
-float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028, 4148, 4073, 4172, 4022, 4132, 4110};
+uint16_t adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16}; // led fraco
+uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028, 4148, 4073, 4172, 4022, 4132, 4110};
 //float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {16, 13, 20, 26, 20, 22, 16, 27, 19, 17}; // led forte
 //float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {3951, 3939, 3949, 3947, 3946, 3942, 3949, 3948, 3944, 3937};
 
@@ -328,6 +328,10 @@ static void APP_UpdateReads(){
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&voltageMovingAverage[channel], adcVoltageReads[channel]);
                     uint16_t voltageValue = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+                    if(voltageValue < adcVoltageCalibrationMin[channel] + 5){
+                        voltageValue = 0;
+                    }
+
                     // Converte e salva no registrador do modbus
                     convertedVoltageReads_int[channel] = UTILS_Map(voltageValue,
                             adcVoltageCalibrationMin[channel], adcVoltageCalibrationMax[channel],
@@ -343,7 +347,7 @@ static void APP_UpdateReads(){
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&currentMovingAverage[channel], adcCurrentReads[channel]);
                     uint16_t currentValue = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
-                    if(currentValue < 35){
+                    if(currentValue < adcCurrentCalibrationMin[channel] + 5){
                         currentValue = 0;
                     }
 
@@ -424,13 +428,6 @@ static void APP_UpdateDisplay(void){
 
     updateDisplayCounter_ms = 0;
 }
-
-static float APP_ConvertCurrentReads(uint16_t value, uint8_t channel){
-    if(value < 35){
-        return 0;
-    }
-    return UTILS_Map(value, MIN_ADC_READ, MAX_ADC_READ, MIN_CURRENT_READ, MAX_CURRENT_READ);
-}
 // Adc reading functions //
 
 // Message treatment functions // [Section]
@@ -486,18 +483,22 @@ static void APP_TreatDebugMessage(){
 
             case SEND_VOLTAGE_READS:
                 COMM_SendAck(ACK_VOLTAGE_READS);
-                COMM_SendValues16Bits(adcVoltageReads, NUMBER_OF_CHANNELS);
+                uint8_t length = NUMBER_OF_CHANNELS*2; // 2 bytes por leitura
+                COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
                 break;
 
             case SEND_CURRENT_READS:
                 COMM_SendAck(ACK_CURRENT_READS);
-                COMM_SendValues16Bits(adcCurrentReads, NUMBER_OF_CHANNELS);
+                uint8_t length = NUMBER_OF_CHANNELS*2; // 2 bytes por leitura
+                COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
                 break;
 
             case SEND_ALL_READS:
+                uint8_t length = NUMBER_OF_CHANNELS*2*2; // 2 bytes por leitura e 2 tipos de leitura
                 COMM_SendAck(ACK_ALL_READS);
-                COMM_SendValues16Bits(adcVoltageReads, NUMBER_OF_CHANNELS);
-                COMM_SendValues16Bits(adcCurrentReads, NUMBER_OF_CHANNELS);
+                COMM_SendChar(&length, 1);
+                COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
+                COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
                 break;
 
             case SET_MODBUS_CONFIG:
@@ -509,8 +510,32 @@ static void APP_TreatDebugMessage(){
                         STRING_GetChar(&debugLastMessage, 5));
                 break;
 
-            case CHANGE_SCALE:
+            case CALIBRATE_VOLTAGE_MIN:
                 COMM_SendAck(ACK_CHANGE_SCALE);
+                for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                    adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+                }
+                break;
+
+            case CALIBRATE_VOLTAGE_MAX:
+                COMM_SendAck(ACK_CHANGE_SCALE);
+                for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                    adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+                }
+                break;
+
+            case CALIBRATE_CURRENT_MIN:
+                COMM_SendAck(ACK_CHANGE_SCALE);
+                for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                    adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+                }
+                break;
+
+            case CALIBRATE_CURRENT_MAX:
+                COMM_SendAck(ACK_CHANGE_SCALE);
+                for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                    adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+                }
                 break;
 
             case LOGS:
@@ -615,13 +640,19 @@ static void APP_TreatSlaveResponse(string *response){
             for(uint8_t i = 0; i < modbusHandler.qttRegisters; i++){
                 uint16_t incomingShort = STRING_GetChar(response, 3 + 2*i) << 8;
                 incomingShort |= STRING_GetChar(response, 3 + 2*i + 1);
+                uint16_t channel = modbusHandler.firstRegister + i/2;
+
                 if(modbusHandler.firstRegister + i%2 == 0){
-                    convertedVoltageReads_V[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i/2] =
-                            UTILS_Map(incomingShort, MIN_ADC_READ, MAX_ADC_READ, MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
+                    convertedVoltageReads_V[modbusHandler.requestId - 0x6C + 1][channel] =
+                            UTILS_Map(incomingShort,
+                                    MIN_ADC_READ, MAX_ADC_READ,
+                                    MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
                 else{
-                    convertedCurrentReads_mA[modbusHandler.requestId - 0x6C + 1][modbusHandler.firstRegister + i/2] =
-                            UTILS_Map(incomingShort, MIN_ADC_READ, MAX_ADC_READ, MIN_CURRENT_READ, MAX_CURRENT_READ);
+                    convertedCurrentReads_mA[modbusHandler.requestId - 0x6C + 1][channel] =
+                            UTILS_Map(incomingShort,
+                                    MIN_ADC_READ, MAX_ADC_READ,
+                                    MIN_CURRENT_READ, MAX_CURRENT_READ);
                 }
             }
             break;
@@ -821,46 +852,6 @@ static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseT
             time.Minutes,
             time.Seconds);
     STRING_AddCharString(String, buffer);
-}
-
-static void APP_CalibrateSensorsMin(){
-    const uint16_t CALIBRATION_SAMPLES = 50;
-    uint32_t minValues[NUMBER_OF_CHANNELS] = {0};
-
-    reading = READ_VOLTAGE;
-    newReads = 0;
-    APP_StartAdcReadDma(reading);
-
-    for(uint16_t sample = 0; sample < CALIBRATION_SAMPLES; sample++){
-        for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-            if(newReads){
-                minValues[channel] += adcVoltageReads[channel];
-                newReads = 0;
-                APP_StartAdcReadDma(reading);
-            }
-        }
-    }
-    for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-        adcVoltageCalibrationMin[channel] = (float)minValues[channel]/(float)CALIBRATION_SAMPLES;
-        minValues[channel] = 0;
-    }
-
-    reading = READ_CURRENT;
-    APP_StartAdcReadDma(reading);
-
-    for(uint16_t sample = 0; sample < CALIBRATION_SAMPLES; sample++){
-        if(newReads){
-            for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                minValues[channel] += adcCurrentReads[channel];
-            }
-            newReads = 0;
-            APP_StartAdcReadDma(reading);
-        }
-    }
-    for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-        adcCurrentCalibrationMin[channel] = (float)minValues[channel]/(float)CALIBRATION_SAMPLES;
-        minValues[channel] = 0;
-    }
 }
 // Specific utility functions //
 
