@@ -7,6 +7,7 @@
 
 #include "stm32l4xx_hal.h"
 #include "utils.h"
+#include <math.h>
 
 void UTILS_CpuSleep(){
     HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
@@ -46,4 +47,8 @@ void UTILS_MovingAverageClear(movingAverage_t *self){
     for(uint8_t i = 0; i < self->size; i++){
         self->buffer[i] = 0;
     }
+}
+
+uint32_t UTILS_GetIntegerSpacesFromFloat(float value){
+    return (uint32_t)log10f(value) + 1;
 }

@@ -327,11 +327,14 @@ static void APP_UpdateReads(){
             case READ_VOLTAGE:
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&voltageMovingAverage[channel], adcVoltageReads[channel]);
-                    convertedVoltageReads_int[channel] = UTILS_Map(UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]),
+                    uint16_t voltageValue = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+                    // Converte e salva no registrador do modbus
+                    convertedVoltageReads_int[channel] = UTILS_Map(voltageValue,
                             adcVoltageCalibrationMin[channel], adcVoltageCalibrationMax[channel],
                             MIN_ADC_READ, MAX_ADC_READ);
-                    convertedVoltageReads_V[0][channel] = UTILS_Map(convertedVoltageReads_int[channel],
-                            MIN_ADC_READ, MAX_ADC_READ,
+                    // Converte para enviar pro display
+                    convertedVoltageReads_V[0][channel] = UTILS_Map(voltageValue,
+                            adcVoltageCalibrationMin[channel], adcVoltageCalibrationMax[channel],
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
                 break;
@@ -339,17 +342,19 @@ static void APP_UpdateReads(){
             case READ_CURRENT:
                 for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                     UTILS_MovingAverageAddValue(&currentMovingAverage[channel], adcCurrentReads[channel]);
-                    uint16_t currentAverage = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
-                    if(currentAverage < 35){
-                        convertedCurrentReads_int[channel] = 0;
+                    uint16_t currentValue = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+                    if(currentValue < 35){
+                        currentValue = 0;
                     }
-                    else{
-                        convertedCurrentReads_int[channel] = UTILS_Map(currentAverage,
-                                adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
-                                MIN_ADC_READ, MAX_ADC_READ);
-                    }
-                    convertedCurrentReads_mA[0][channel] =
-                            APP_ConvertCurrentReads(convertedCurrentReads_int[channel], channel);
+
+                    // Converte e salva no registrador do modbus
+                    convertedCurrentReads_int[channel] = UTILS_Map(currentValue,
+                            adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
+                            MIN_ADC_READ, MAX_ADC_READ);
+                    // Converte para enviar pro display
+                    convertedCurrentReads_mA[0][channel] = UTILS_Map(currentValue,
+                            adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
+                            MIN_CURRENT_READ, MAX_CURRENT_READ);
                 }
                 break;
         }
@@ -386,21 +391,14 @@ static void APP_UpdateDisplay(void){
         return;
     }
 
-    uint16_t integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-    uint16_t decimalSpaces = 0;
     for(uint8_t placa = 0; placa < MODBUS_NUMBER_OF_DEVICES; placa++){
         for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-            integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-            decimalSpaces = 0;
-            for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
-                if(convertedVoltageReads_V[placa][i] > order){
-                    break;
-                }
-                integerSpaces--;
-                if(decimalSpaces < 2){
-                    decimalSpaces++;
-                }
+            uint16_t integerSpaces =  UTILS_GetIntegerSpacesFromFloat(convertedVoltageReads_V[placa][i]);
+            uint16_t decimalSpaces = NUMBER_OF_DIGITS_IN_BOX - integerSpaces;
+            if(decimalSpaces > 2){
+                decimalSpaces = 2;
             }
+
             if(placa == 0){
                 NEXTION_SetComponentFloatValue(&voltageTxtBx1[i], convertedVoltageReads_V[placa][i], integerSpaces, decimalSpaces);
             }
@@ -408,17 +406,12 @@ static void APP_UpdateDisplay(void){
                 NEXTION_SetComponentFloatValue(&voltageTxtBx2[i], convertedVoltageReads_V[placa][i], integerSpaces, decimalSpaces);
             }
 
-            integerSpaces = NUMBER_OF_DIGITS_IN_BOX;
-            decimalSpaces = 0;
-            for(uint32_t order = pow(10, NUMBER_OF_DIGITS_IN_BOX - 1); order >= 1; order/=10){
-                if(convertedCurrentReads_mA[placa][i] > order){
-                    break;
-                }
-                integerSpaces--;
-                if(decimalSpaces < 2){
-                    decimalSpaces++;
-                }
+            integerSpaces = UTILS_GetIntegerSpacesFromFloat(convertedCurrentReads_mA[placa][i]);
+            decimalSpaces = NUMBER_OF_DIGITS_IN_BOX - integerSpaces;
+            if(decimalSpaces > 2){
+                decimalSpaces = 2;
             }
+
             if(placa == 0){
                 NEXTION_SetComponentFloatValue(&currentTxtBx1[i], convertedCurrentReads_mA[placa][i], integerSpaces, decimalSpaces);
             }

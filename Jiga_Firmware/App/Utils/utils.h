@@ -22,5 +22,6 @@ void UTILS_MovingAverageInit(movingAverage_t *self, uint8_t size);
 void UTILS_MovingAverageAddValue(movingAverage_t *self, uint16_t value);
 uint16_t UTILS_MovingAverageGetValue(movingAverage_t *self);
 void UTILS_MovingAverageClear(movingAverage_t *self);
+uint32_t UTILS_GetIntegerSpacesFromFloat(float value);
 
 #endif /* UTILS_UTILS_H_ */
