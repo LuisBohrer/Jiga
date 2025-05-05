@@ -30,12 +30,12 @@
 
 uint16_t adcVoltageCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
 uint16_t adcVoltageCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
-//float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
-//float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
-uint16_t adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16}; // led fraco
-uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028, 4148, 4073, 4172, 4022, 4132, 4110};
-//float adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {16, 13, 20, 26, 20, 22, 16, 27, 19, 17}; // led forte
-//float adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {3951, 3939, 3949, 3947, 3946, 3942, 3949, 3948, 3944, 3937};
+uint16_t adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
+uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
+//uint16_t adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16}; // led fraco
+//uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028, 4148, 4073, 4172, 4022, 4132, 4110};
+//uint16_t adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {16, 13, 20, 26, 20, 22, 16, 27, 19, 17}; // led forte
+//uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {3951, 3939, 3949, 3947, 3946, 3942, 3949, 3948, 3944, 3937};
 
 const uint16_t MIN_ADC_READ = 0;
 const uint16_t MAX_ADC_READ = 4095;
@@ -72,7 +72,7 @@ movingAverage_t voltageMovingAverage[NUMBER_OF_CHANNELS];
 // Display constants // [Section]
 const uint16_t NUMBER_OF_DIGITS_IN_BOX = 4;
 const string nextionStartBytes = {{'#', '#'}, 2};
-typedef enum nextionOpcodes_e{
+typedef enum displayOpcodes_e{
     SET_AS_MASTER = 0,
 } displayOpcodes_t;
 // Display constants //
@@ -159,7 +159,6 @@ static void APP_RequestReads(void);
 static void APP_UpdateDisplay(void);
 static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
-static void APP_SendPeriodicReads(void);
 static void APP_TreatDebugMessage(void);
 static void APP_TreatModbusMessage(void);
 static void APP_TreatMasterRequest(string *request);
@@ -169,7 +168,6 @@ static void APP_DisableModbus(void);
 static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart);
 static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
 static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer, uartBaudRate_t baudRate, uartStopBits_t stopBits, uartParity_t parity);
-static void APP_SendReadsMinute(void);
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
 static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, uint8_t year);
 static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime);
@@ -261,6 +259,22 @@ static void APP_InitTimers(){
     HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 2000, RTC_WAKEUPCLOCK_RTCCLK_DIV16); // 1 seg
 }
 
+static void APP_InitModbus(void){
+    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR1_GPIO_Port, ADDR1_Pin));
+    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR2_GPIO_Port, ADDR2_Pin) << 1);
+    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR3_GPIO_Port, ADDR3_Pin) << 2);
+    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR4_GPIO_Port, ADDR4_Pin) << 3);
+    DEVICE_ADDRESS += 0x6C;
+
+    // Organizando o array de acordo com a lista de registradores em regs.h
+    for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
+        inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
+        inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
+    }
+
+    MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
+}
+
 static void APP_EnableSupplies(uint8_t supplyFlags){
     if(supplyFlags & SUPPLY_5V){
         HAL_GPIO_WritePin(LIGA5V_GPIO_Port, LIGA5V_Pin, GPIO_PIN_SET);
@@ -295,22 +309,6 @@ static void APP_StartAdcReadDma(reading_t typeOfRead){
     } while(status != HAL_OK);
     HAL_Delay(5); // importante pra ter leituras certas
     reading = typeOfRead;
-}
-
-static void APP_InitModbus(void){
-    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR1_GPIO_Port, ADDR1_Pin));
-    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR2_GPIO_Port, ADDR2_Pin) << 1);
-    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR3_GPIO_Port, ADDR3_Pin) << 2);
-    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR4_GPIO_Port, ADDR4_Pin) << 3);
-    DEVICE_ADDRESS += 0x6C;
-
-    // Organizando o array de acordo com a lista de registradores em regs.h
-    for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-        inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
-        inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
-    }
-
-    MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
 }
 // Init functions //
 
@@ -543,6 +541,9 @@ static void APP_TreatDebugMessage(){
             }
             length = sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t);
             EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, length);
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case CALIBRATE_VOLTAGE_MAX:
@@ -552,6 +553,9 @@ static void APP_TreatDebugMessage(){
             }
             length = sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t);
             EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, length);
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case CALIBRATE_CURRENT_MIN:
@@ -561,6 +565,9 @@ static void APP_TreatDebugMessage(){
             }
             length = sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t);
             EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, length);
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case CALIBRATE_CURRENT_MAX:
@@ -570,6 +577,9 @@ static void APP_TreatDebugMessage(){
             }
             length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
             EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, length);
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case RESET_VOLTAGE_MIN:
@@ -579,6 +589,9 @@ static void APP_TreatDebugMessage(){
             }
             length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
             EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, VOLTAGE_CALIBRATION_MIN_0, length);
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case RESET_VOLTAGE_MAX:
@@ -588,6 +601,9 @@ static void APP_TreatDebugMessage(){
             }
             length = sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t);
             EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, length);
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case RESET_CURRENT_MIN:
@@ -597,6 +613,9 @@ static void APP_TreatDebugMessage(){
             }
             length = sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t);
             EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, length);
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case RESET_CURRENT_MAX:
@@ -606,6 +625,9 @@ static void APP_TreatDebugMessage(){
             }
             length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
             EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, length);
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case LOGS:
@@ -745,10 +767,6 @@ static void APP_TreatSlaveResponse(string *response){
 // Message treatment functions //
 
 // Uart handling functions // [Section]
-static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart){
-    HAL_UART_Abort_IT(huart);
-}
-
 static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart){
     HAL_StatusTypeDef status;
     if(huart == DISPLAY_UART){
@@ -761,6 +779,10 @@ static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart){
         status = HAL_UART_Receive_IT(huart, &modbusLastChar, 1);
     }
     return (status == HAL_OK) || (status == HAL_BUSY);
+}
+
+static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart){
+    HAL_UART_Abort_IT(huart);
 }
 
 static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer, uartBaudRate_t baudRate, uartStopBits_t stopBits, uartParity_t parity){
@@ -841,28 +863,6 @@ static void APP_SendLog(){
     COMM_SendEndPacket();
 }
 
-static void APP_SendPeriodicReads(){
-    if(!appStarted){
-        return;
-    }
-
-    string message;
-    STRING_Init(&message);
-    STRING_AddCharString(&message, "\n\r");
-    APP_AddRtcTimestampToString(&message, &hrtc);
-    STRING_AddCharString(&message, "\n\r");
-    COMM_SendString(&message);
-
-    for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-        STRING_Init(&message);
-        char line[100] = {'\0'};
-        sprintf(line, "Read %d: Voltage = %.2f V ; Current = %.2f mA", i, convertedVoltageReads_V[0][i], convertedCurrentReads_mA[0][i]);
-        STRING_AddCharString(&message, line);
-        STRING_AddCharString(&message, "\n\r");
-        COMM_SendString(&message);
-    }
-}
-
 static void APP_EnableModbus(){
     if(modbusEnabled)
         return;
@@ -887,22 +887,6 @@ static void APP_DisableModbus(){
     HAL_GPIO_WritePin(LIGA_RS485__GPIO_Port, LIGA_RS485__Pin, GPIO_PIN_SET);
 
     modbusEnabled = 0;
-}
-
-RTC_TimeTypeDef currentTime;
-static void APP_SendReadsMinute(){
-    if(!appStarted){
-        return;
-    }
-
-    static uint8_t lastMessageMinute = 61;
-    HAL_RTC_GetTime(&hrtc, &currentTime, RTC_FORMAT_BIN);
-    HAL_RTC_GetDate(&hrtc, NULL, RTC_FORMAT_BIN); // necessario pra nao travar o rtc
-
-    if(lastMessageMinute != currentTime.Minutes){
-        APP_SendPeriodicReads();
-        lastMessageMinute = currentTime.Minutes;
-    }
 }
 
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours){

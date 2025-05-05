@@ -21,6 +21,9 @@ float UTILS_Map(float value, float fromMin, float fromMax, float toMin, float to
 
 void UTILS_MovingAverageInit(movingAverage_t *self, uint8_t size){
     self->index = 0;
+    if(size > MOVING_AVERAGE_MAX_BUFFER_SIZE){
+        size = MOVING_AVERAGE_MAX_BUFFER_SIZE;
+    }
     self->size = size;
     for(uint8_t i = 0; i < self->size; i++){
         self->buffer[i] = 0;

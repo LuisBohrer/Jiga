@@ -62,7 +62,7 @@ static void MODBUS_ResetIndexes(modbusHandler_t *modbusHandler){
 }
 
 static void MODBUS_SendByte(modbusHandler_t *modbusHandler, uint8_t byte){
-    HAL_UART_Transmit(modbusHandler->modbusUart, &byte, 1, 100); // talvez tenha problema com o &byte [TEST]
+    HAL_UART_Transmit(modbusHandler->modbusUart, &byte, 1, 100);
     modbusHandler->payloadBuffer[modbusHandler->payloadIndex++] = byte;
 }
 
