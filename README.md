@@ -230,6 +230,9 @@ Referência: [embarcados.com.br/protocolo-modbus/](https://embarcados.com.br/pro
 | `MODBUS_WriteMultipleCoils` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstCoilAddress:` endereço da primeira bobina desejada <li>`uint16_t numberOfCoils:` número de bobinas para escrever <li>`uint8_t *valuesToWrite:` endereço do buffer com os valores para ser escritos | Faz uma requisição de escrita de multiplas bobinas. |
 | `MODBUS_WriteSingleHoldingRegister` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint32_t valueToWrite:` valor para escrever no registrador <li>`registerBytes_t sizeOfRegisterBytes:` tamanho do registrador | Faz uma requisição de escrita de um registrador. |
 | `MODBUS_WriteMultipleHoldingRegisters` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint16_t numberOfRegisters:` número de registradores para ler <li>`registerBytes_t sizeOfRegisterBytes:` tamanho em bytes dos registradores <li>`uint8_t *valuesToWrite:` buffer com os valores que serão escritos nos registradores | Faz uma requisição de escrita de multiplos registradores. |
+| `MODBUS_SendResponse` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t* responseBuffer:` buffer da resposta a enviar <li>`uint16_t responseBufferLength:` tamanho do buffer de resposta | Faz o envio de um buffer pelo modbus |
+| `MODBUS_UpdateHandler` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t* messageBuffer:` buffer da última mensagem do modbus | Atualiza o handler de acordo com as informações na mensagem. |
+| `MODBUS_SendError` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`modbusError_t error:` tipo do erro ocorrido | Envia uma mensagem de erro pelo modbus. |
 
 </details>
 
@@ -343,7 +346,6 @@ Trata o tipo "string" para facilitar a construção e envio de mensagens por uar
 | `STRING_CompareStringsRev` | `uint8_t:` 0 se as seções foram diferentes, 1 se forem iguais | <ul><li>`const string *string1:` primeira string <li>`const string *string2:` segunda string `uint16_t length:` tamanho da seção para comparar | Compara as seções de duas strings a partir do seu fim. |
 | `STRING_GetChar` | `uint8_t:` char armazenado na posição desejada | <ul><li>`const string *inputString:` string de origem <li>`uint16_t index:` indice do char desejado | Retorna um char armazenado dentro da string. |
 
-
 </details>
 
 #
@@ -358,12 +360,23 @@ Trata o tipo "string" para facilitar a construção e envio de mensagens por uar
 
 Funções utilitárias.
 
+### Structs
+
+| Struct | Componentes | Descrição |
+| --- | --- | --- |
+| `movingAverage_t` | <ul><li>`uint16_t buffer[MOVING_AVERAGE_MAX_BUFFER_SIZE]:` buffer onde os valores são armazenados; o tamanho máximo é 20 <li>`uint8_t index:` índice que aponta para o valor mais velho do buffer <li>`uint8_t size:` tamanho do buffer | Estrutura para implementação de médias móveis. |
+
 ### Funções
 
 | Função | Retorno | Parâmetros | Descrição |
 | --- | --- | --- | --- |
 | `UTILS_CpuSleep` | <div align="center">`void`</div> | <div align="center">`void`</div> | Coloca o microcontrolador no modo sleep. |
 | `UTILS_Map` | `float:` valor convertido | <ul><li>`float value:` valor para converter <li>`float fromMin:` limite inferior do valor original <li>`float fromMax:` limite superior do valor original <li>`float toMin:` limite inferior da conversão desejada <li>`float toMax:` limite superior da conversão desejada | Faz a conversão de um valor para outra base. |
+| `UTILS_MovingAverageInit` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel <li>`uint8_t size:` tamanho do buffer | Inicializa a estrutura de média móvel. |
+| `UTILS_MovingAverageAddValue` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel <li>`uint16_t value:` valor para adicionar ao buffer | Adiciona um valor no buffer da estrutura. |
+| `UTILS_MovingAverageGetValue` | `uint16_t:` valor da média | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel | Calcula e retorna a média dos valores armazenados na estrutura. |
+| `UTILS_MovingAverageClear` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel | Limpa os valores da estrutura. |
+| `UTILS_GetIntegerSpacesFromFloat` | `uint32_t:` quantidade de números inteiros calculada | <ul><li>`float float:` value | Calcula e retorna a quantidade de valores inteiros em um float. |
 
 </details>
 
