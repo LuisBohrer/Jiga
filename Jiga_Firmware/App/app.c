@@ -207,7 +207,7 @@ void APP_init(){
     vLEDS_SetLedState(1, GPIO_PIN_SET);
     vLEDS_SetLedState(2, GPIO_PIN_RESET);
     appStarted = 1;
-    //    APP_CalibrateSensorsMin();
+//    APP_CalibrateSensorsMin();
 }
 
 void APP_poll(){
@@ -373,6 +373,9 @@ static void APP_UpdateReads(){
 }
 
 static void APP_RequestReads(void){
+    if(!appStarted){
+        return;
+    }
     if(!modbusMaster){
         return;
     }
@@ -397,6 +400,9 @@ static void APP_RequestReads(void){
 }
 
 static void APP_UpdateDisplay(void){
+    if(!appStarted){
+        return;
+    }
     if(updateDisplayCounter_ms < UPDATE_DISPLAY_PERIOD_MS){
         return;
     }
@@ -438,6 +444,10 @@ static void APP_UpdateDisplay(void){
 
 // Message treatment functions // [Section]
 static void APP_TreatDisplayMessage(){
+    if(!appStarted){
+        RB_ClearBuffer(&displayRb);
+        return;
+    }
     while(!RB_IsEmpty(&displayRb)){
         STRING_AddChar(&displayLastMessage, RB_GetByte(&displayRb));
     }
@@ -472,6 +482,10 @@ static void APP_TreatDisplayMessage(){
 }
 
 static void APP_TreatDebugMessage(){
+    if(!appStarted){
+        RB_ClearBuffer(&debugRb);
+        return;
+    }
     while(!RB_IsEmpty(&debugRb)){
         STRING_AddChar(&debugLastMessage, RB_GetByte(&debugRb));
     }
@@ -491,22 +505,22 @@ static void APP_TreatDebugMessage(){
             break;
 
         case SEND_VOLTAGE_READS:
-            length = sizeof(convertedVoltageReads_int)/sizeof(convertedVoltageReads_int[0]);
+            length = sizeof(convertedVoltageReads_int)/sizeof(uint8_t);
             COMM_SendAck(ACK_VOLTAGE_READS);
             COMM_SendChar(&length, 1);
             COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
             break;
 
         case SEND_CURRENT_READS:
-            length = sizeof(convertedCurrentReads_int)/sizeof(convertedCurrentReads_int[0]);
+            length = sizeof(convertedCurrentReads_int)/sizeof(uint8_t);
             COMM_SendAck(ACK_CURRENT_READS);
             COMM_SendChar(&length, 1);
             COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
             break;
 
         case SEND_ALL_READS:
-            length = sizeof(convertedVoltageReads_int)/sizeof(convertedVoltageReads_int[0])
-                    + sizeof(convertedCurrentReads_int)/sizeof(convertedCurrentReads_int[0]);
+            length = sizeof(convertedVoltageReads_int)/sizeof(uint8_t)
+                    + sizeof(convertedCurrentReads_int)/sizeof(uint8_t);
             COMM_SendAck(ACK_ALL_READS);
             COMM_SendChar(&length, 1);
             COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
@@ -558,6 +572,42 @@ static void APP_TreatDebugMessage(){
             EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, length);
             break;
 
+        case RESET_VOLTAGE_MIN:
+            COMM_SendAck(ACK_CHANGE_SCALE);
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                adcVoltageCalibrationMin[channel] = MIN_ADC_READ;
+            }
+            length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
+            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, VOLTAGE_CALIBRATION_MIN_0, length);
+            break;
+
+        case RESET_VOLTAGE_MAX:
+            COMM_SendAck(ACK_CHANGE_SCALE);
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                adcVoltageCalibrationMax[channel] = MAX_ADC_READ;
+            }
+            length = sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t);
+            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, length);
+            break;
+
+        case RESET_CURRENT_MIN:
+            COMM_SendAck(ACK_CHANGE_SCALE);
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                adcCurrentCalibrationMin[channel] = MIN_ADC_READ;
+            }
+            length = sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t);
+            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, length);
+            break;
+
+        case RESET_CURRENT_MAX:
+            COMM_SendAck(ACK_CHANGE_SCALE);
+            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+                adcCurrentCalibrationMax[channel] = MAX_ADC_READ;
+            }
+            length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
+            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, length);
+            break;
+
         case LOGS:
             COMM_SendAck(ACK_LOGS);
             APP_SendLog();
@@ -572,6 +622,10 @@ static void APP_TreatDebugMessage(){
 }
 
 static void APP_TreatModbusMessage(){
+    if(!appStarted){
+        RB_ClearBuffer(&modbusRb);
+        return;
+    }
     if(!modbusEnabled){
         return;
     }
@@ -609,6 +663,10 @@ static void APP_TreatModbusMessage(){
 }
 
 static void APP_TreatMasterRequest(string *request){
+    if(!appStarted){
+        return;
+    }
+
     modbusError_t messageError = MODBUS_VerifyCrc(STRING_GetBuffer(request), STRING_GetLength(request));
     if(messageError == MODBUS_INCORRECT_CRC){
         MODBUS_SendError(&modbusHandler, MODBUS_INCORRECT_CRC);
@@ -648,6 +706,10 @@ static void APP_TreatMasterRequest(string *request){
 }
 
 static void APP_TreatSlaveResponse(string *response){
+    if(!appStarted){
+        return;
+    }
+
     modbusError_t messageError = MODBUS_VerifyWithHandler(&modbusHandler, STRING_GetBuffer(response), STRING_GetLength(response));
     if(messageError != MODBUS_NO_ERROR){
         STRING_Clear(&modbusLastMessage);
@@ -758,6 +820,10 @@ static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer
 
 // Specific utility functions // [Section]
 static void APP_SendLog(){
+    if(!appStarted){
+        return;
+    }
+
     string logMessage;
     STRING_Init(&logMessage);
     APP_AddRtcTimestampToString(&logMessage, &hrtc);
@@ -776,6 +842,10 @@ static void APP_SendLog(){
 }
 
 static void APP_SendPeriodicReads(){
+    if(!appStarted){
+        return;
+    }
+
     string message;
     STRING_Init(&message);
     STRING_AddCharString(&message, "\n\r");
@@ -821,6 +891,10 @@ static void APP_DisableModbus(){
 
 RTC_TimeTypeDef currentTime;
 static void APP_SendReadsMinute(){
+    if(!appStarted){
+        return;
+    }
+
     static uint8_t lastMessageMinute = 61;
     HAL_RTC_GetTime(&hrtc, &currentTime, RTC_FORMAT_BIN);
     HAL_RTC_GetDate(&hrtc, NULL, RTC_FORMAT_BIN); // necessario pra nao travar o rtc
@@ -856,6 +930,10 @@ static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, 
 }
 
 static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime){
+    if(!appStarted){
+        return;
+    }
+
     RTC_DateTypeDef date;
     RTC_TimeTypeDef time;
     char buffer[100];
