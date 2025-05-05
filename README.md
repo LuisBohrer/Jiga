@@ -10,6 +10,108 @@ O objetivo da placa é fazer a coleta de 10 leituras de tensão e corrente. Ela 
 
 <summary>
 
+## Endereços
+
+</summary>
+
+#
+
+<details>
+
+<summary>
+
+### Modbus
+
+</summary>
+
+| **Input Registers** | **Endereço** |
+| --- | --- |
+| `Tensão 1` | 0x00 |
+| `Corrente 1` | 0x01 |
+| `Tensão 2` | 0x02 |
+| `Corrente 2` | 0x03 |
+| `Tensão 3` | 0x04 |
+| `Corrente 3` | 0x05 |
+| `Tensão 4` | 0x06 |
+| `Corrente 4` | 0x07 |
+| `Tensão 5` | 0x08 |
+| `Corrente 5` | 0x09 |
+| `Tensão 6` | 0x0A |
+| `Corrente 6` | 0x0B |
+| `Tensão 7` | 0x0C |
+| `Corrente 7` | 0x0D |
+| `Tensão 8` | 0x0E |
+| `Corrente 8` | 0x0F |
+| `Tensão 9` | 0x10 |
+| `Corrente 9` | 0x11 |
+| `Tensão 10` | 0x12 |
+| `Corrente 10` | 0x13 |
+
+</details>
+
+#
+
+<details>
+
+<summary>
+
+### Eeprom
+
+</summary>
+
+| **Descrição** | **Endereço** |
+| --- | --- |
+| `Zero da Tensão 0` | 0x00 |
+| `Zero da Tensão 1` | 0x02 |
+| `Zero da Tensão 2` | 0x04 |
+| `Zero da Tensão 3` | 0x06 |
+| `Zero da Tensão 4` | 0x08 |
+| `Zero da Tensão 5` | 0x0A |
+| `Zero da Tensão 6` | 0x0C |
+| `Zero da Tensão 7` | 0x0E |
+| `Zero da Tensão 8` | 0x10 |
+| `Zero da Tensão 9` | 0x12 |
+| `Máximo da Tensão 0` | 0x14 |
+| `Máximo da Tensão 1` | 0x16 |
+| `Máximo da Tensão 2` | 0x18 |
+| `Máximo da Tensão 3` | 0x1A |
+| `Máximo da Tensão 4` | 0x1C |
+| `Máximo da Tensão 5` | 0x1E |
+| `Máximo da Tensão 6` | 0x20 |
+| `Máximo da Tensão 7` | 0x22 |
+| `Máximo da Tensão 8` | 0x24 |
+| `Máximo da Tensão 9` | 0x26 |
+| `Zero da Corrente 0` | 0x28 |
+| `Zero da Corrente 1` | 0x2A |
+| `Zero da Corrente 2` | 0x2C |
+| `Zero da Corrente 3` | 0x2E |
+| `Zero da Corrente 4` | 0x30 |
+| `Zero da Corrente 5` | 0x32 |
+| `Zero da Corrente 6` | 0x34 |
+| `Zero da Corrente 7` | 0x36 |
+| `Zero da Corrente 8` | 0x38 |
+| `Zero da Corrente 9` | 0x3A |
+| `Máximo da Corrente 0` | 0x3C |
+| `Máximo da Corrente 1` | 0x3E |
+| `Máximo da Corrente 2` | 0x40 |
+| `Máximo da Corrente 3` | 0x42 |
+| `Máximo da Corrente 4` | 0x44 |
+| `Máximo da Corrente 5` | 0x46 |
+| `Máximo da Corrente 6` | 0x48 |
+| `Máximo da Corrente 7` | 0x4A |
+| `Máximo da Corrente 8` | 0x4C |
+| `Máximo da Corrente 9` | 0x4E |
+
+</details>
+
+</details>
+
+#
+
+<details>
+
+<summary>
+
 ## Descritivo da Lógica de Funcionamento
 
 </summary>
