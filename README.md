@@ -107,6 +107,10 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | Enum | Componentes | Descrição |
 | --- | --- | --- |
 | `reading_t` | <ul><li>`READ_VOLTAGE` <li>`READ_CURRENT` | Tipos de leitura do ADC. |
+| `displayOpcodes_t` | <ul><li>`SET_AS_MASTER` | Opcodes do display. |
+| `uartBaudRate_t` | <ul><li>`BAUD_RATE_9600` <li>`BAUD_RATE_19200` <li>`BAUD_RATE_115200` | Baudrates usados. |
+| `uartStopBits_t` | <ul><li>`STOP_BITS_0_5` <li>`STOP_BITS_1` <li>`STOP_BITS_1_5` <li>`STOP_BITS_2` | Número de stop bits usados. |
+| `uartParity_t` | <ul><li>`PARITY_NONE` <li>`PARITY_EVEN` <li>`PARITY_ODD` | Paridade usada. |
 
 ### Funções
 
@@ -114,8 +118,26 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | --- | --- | --- | --- |
 | **APP_InitUarts** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a inicialização das uarts de display, debug e modbus, bem como de seus ring buffers. |
 | **APP_InitTimers** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a inicialização do timer 6 (1 ms). |
+| **APP_InitModbus** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a inicialização do modbus. |
+| **APP_EnableSupplies** | <div align="center">`void`</div> | <div align="center"><ul><li>`uint8_t supplyFlags:` byte com as flags das fontes que devem ser ligadas. | Liga as fontes especificadas na placa. |
+| **APP_DisableSupplies** | <div align="center">`void`</div> | <div align="center"><ul><li>`uint8_t supplyFlags:` byte com as flags das fontes que devem ser desligadas. | Desliga as fontes especificadas na placa. |
 | **APP_StartAdcReadDma** | <div align="center">`void`</div> | <ul><li>`uint16_t* readsBuffer:` buffer onde as leituras são armazenadas <li>`reading_t rypeOfRead:` escolhe se a leitura é de tensão ou corrente | Inicia a leitura por DMA e seta a variável global que indica o tipo de leitura sendo feito. |
 | **APP_UpdateReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Verifica se há novas leituras e, caso sim, as envia para o display. Também faz a requisição de uma nova leitura do outro tipo. |
+| **APP_RequestReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a requisição de leituras de outras placas. |
+| **APP_UpdateDisplay** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio das leituras da placa para o display. |
+| **APP_TreatDisplayMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pelo display. |
+| **APP_TreatDebugMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pela porta de debug. |
+| **APP_TreatModbusMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pelo modbus. |
+| **APP_TreatMasterRequest** | <div align="center">`void`</div> | <ul><li>`string* request:` mensagem recebida pelo modbus | Faz o tratamento das mensagens enviads pelo modbus como escravo. |
+| **APP_TreatSlaveResponse** | <div align="center">`void`</div> | <ul><li>`string* response:` mensagem recebida pelo modbus | Faz o tratamento das mensagens enviads pelo modbus como mestre. |
+| **APP_EnableUartInterrupt** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser ligada | Ativa o recebimento da uart por interrupção. |
+| **APP_DisableUartInterrupt** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser desligada | Desliga o recebimento da uart por interrupção. |
+| **APP_UpdateUartConfigs** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser alterada <li>`uint8_t* uartBuffer:` buffer da uart <li>`uartBaudRate_t:` baudrate <li>`uartStopBits_t:` quantidade de stop bits <li>`parity:` paridade | Reinicia a uart com novas configurações. |
+| **APP_SendLog** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio de uma mensagem com timestamp e as  leituras da placa na porta de debug. |
+| **APP_SendPeriodicReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio de uma mensagem com timestamp e as  leituras da placa na porta de debug. |
+| **APP_SetRtcTime** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t seconds:` segundos para setar <li>`uint8_t minutes:` minutos para setar <li>`uint8_t hours:` horas para setar | Seta um novo horário no RTC |
+| **APP_SetRtcDate** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t day:` dia para setar <li>`uint8_t month:` mês para setar <li>`uint8_t year:` ano para setar | Seta uma nova data no RTC |
+| **APP_AddRtcTimestampToString** | <div align="center">`void`</div> | <ul><li>`string* String:` string de base <li>`RTC_HandleTypeDef* baseTime:` estrutura do RTC para adicionar | Adiciona o timestamp do RTC na string. |
 
 ### Callbacks das Interrupções
 
