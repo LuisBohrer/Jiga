@@ -10,6 +10,108 @@ O objetivo da placa é fazer a coleta de 10 leituras de tensão e corrente. Ela 
 
 <summary>
 
+## Endereços
+
+</summary>
+
+#
+
+<details>
+
+<summary>
+
+### Modbus
+
+</summary>
+
+| **Input Registers** | **Endereço** |
+| --- | --- |
+| `Tensão 1` | 0x00 |
+| `Corrente 1` | 0x01 |
+| `Tensão 2` | 0x02 |
+| `Corrente 2` | 0x03 |
+| `Tensão 3` | 0x04 |
+| `Corrente 3` | 0x05 |
+| `Tensão 4` | 0x06 |
+| `Corrente 4` | 0x07 |
+| `Tensão 5` | 0x08 |
+| `Corrente 5` | 0x09 |
+| `Tensão 6` | 0x0A |
+| `Corrente 6` | 0x0B |
+| `Tensão 7` | 0x0C |
+| `Corrente 7` | 0x0D |
+| `Tensão 8` | 0x0E |
+| `Corrente 8` | 0x0F |
+| `Tensão 9` | 0x10 |
+| `Corrente 9` | 0x11 |
+| `Tensão 10` | 0x12 |
+| `Corrente 10` | 0x13 |
+
+</details>
+
+#
+
+<details>
+
+<summary>
+
+### Eeprom
+
+</summary>
+
+| **Descrição** | **Endereço** |
+| --- | --- |
+| `Zero da Tensão 0` | 0x00 |
+| `Zero da Tensão 1` | 0x02 |
+| `Zero da Tensão 2` | 0x04 |
+| `Zero da Tensão 3` | 0x06 |
+| `Zero da Tensão 4` | 0x08 |
+| `Zero da Tensão 5` | 0x0A |
+| `Zero da Tensão 6` | 0x0C |
+| `Zero da Tensão 7` | 0x0E |
+| `Zero da Tensão 8` | 0x10 |
+| `Zero da Tensão 9` | 0x12 |
+| `Máximo da Tensão 0` | 0x14 |
+| `Máximo da Tensão 1` | 0x16 |
+| `Máximo da Tensão 2` | 0x18 |
+| `Máximo da Tensão 3` | 0x1A |
+| `Máximo da Tensão 4` | 0x1C |
+| `Máximo da Tensão 5` | 0x1E |
+| `Máximo da Tensão 6` | 0x20 |
+| `Máximo da Tensão 7` | 0x22 |
+| `Máximo da Tensão 8` | 0x24 |
+| `Máximo da Tensão 9` | 0x26 |
+| `Zero da Corrente 0` | 0x28 |
+| `Zero da Corrente 1` | 0x2A |
+| `Zero da Corrente 2` | 0x2C |
+| `Zero da Corrente 3` | 0x2E |
+| `Zero da Corrente 4` | 0x30 |
+| `Zero da Corrente 5` | 0x32 |
+| `Zero da Corrente 6` | 0x34 |
+| `Zero da Corrente 7` | 0x36 |
+| `Zero da Corrente 8` | 0x38 |
+| `Zero da Corrente 9` | 0x3A |
+| `Máximo da Corrente 0` | 0x3C |
+| `Máximo da Corrente 1` | 0x3E |
+| `Máximo da Corrente 2` | 0x40 |
+| `Máximo da Corrente 3` | 0x42 |
+| `Máximo da Corrente 4` | 0x44 |
+| `Máximo da Corrente 5` | 0x46 |
+| `Máximo da Corrente 6` | 0x48 |
+| `Máximo da Corrente 7` | 0x4A |
+| `Máximo da Corrente 8` | 0x4C |
+| `Máximo da Corrente 9` | 0x4E |
+
+</details>
+
+</details>
+
+#
+
+<details>
+
+<summary>
+
 ## Descritivo da Lógica de Funcionamento
 
 </summary>
@@ -107,6 +209,10 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | Enum | Componentes | Descrição |
 | --- | --- | --- |
 | `reading_t` | <ul><li>`READ_VOLTAGE` <li>`READ_CURRENT` | Tipos de leitura do ADC. |
+| `displayOpcodes_t` | <ul><li>`SET_AS_MASTER` | Opcodes do display. |
+| `uartBaudRate_t` | <ul><li>`BAUD_RATE_9600` <li>`BAUD_RATE_19200` <li>`BAUD_RATE_115200` | Baudrates usados. |
+| `uartStopBits_t` | <ul><li>`STOP_BITS_0_5` <li>`STOP_BITS_1` <li>`STOP_BITS_1_5` <li>`STOP_BITS_2` | Número de stop bits usados. |
+| `uartParity_t` | <ul><li>`PARITY_NONE` <li>`PARITY_EVEN` <li>`PARITY_ODD` | Paridade usada. |
 
 ### Funções
 
@@ -114,8 +220,26 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | --- | --- | --- | --- |
 | **APP_InitUarts** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a inicialização das uarts de display, debug e modbus, bem como de seus ring buffers. |
 | **APP_InitTimers** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a inicialização do timer 6 (1 ms). |
+| **APP_InitModbus** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a inicialização do modbus. |
+| **APP_EnableSupplies** | <div align="center">`void`</div> | <div align="center"><ul><li>`uint8_t supplyFlags:` byte com as flags das fontes que devem ser ligadas. | Liga as fontes especificadas na placa. |
+| **APP_DisableSupplies** | <div align="center">`void`</div> | <div align="center"><ul><li>`uint8_t supplyFlags:` byte com as flags das fontes que devem ser desligadas. | Desliga as fontes especificadas na placa. |
 | **APP_StartAdcReadDma** | <div align="center">`void`</div> | <ul><li>`uint16_t* readsBuffer:` buffer onde as leituras são armazenadas <li>`reading_t rypeOfRead:` escolhe se a leitura é de tensão ou corrente | Inicia a leitura por DMA e seta a variável global que indica o tipo de leitura sendo feito. |
 | **APP_UpdateReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Verifica se há novas leituras e, caso sim, as envia para o display. Também faz a requisição de uma nova leitura do outro tipo. |
+| **APP_RequestReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a requisição de leituras de outras placas. |
+| **APP_UpdateDisplay** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio das leituras da placa para o display. |
+| **APP_TreatDisplayMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pelo display. |
+| **APP_TreatDebugMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pela porta de debug. |
+| **APP_TreatModbusMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pelo modbus. |
+| **APP_TreatMasterRequest** | <div align="center">`void`</div> | <ul><li>`string* request:` mensagem recebida pelo modbus | Faz o tratamento das mensagens enviads pelo modbus como escravo. |
+| **APP_TreatSlaveResponse** | <div align="center">`void`</div> | <ul><li>`string* response:` mensagem recebida pelo modbus | Faz o tratamento das mensagens enviads pelo modbus como mestre. |
+| **APP_EnableUartInterrupt** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser ligada | Ativa o recebimento da uart por interrupção. |
+| **APP_DisableUartInterrupt** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser desligada | Desliga o recebimento da uart por interrupção. |
+| **APP_UpdateUartConfigs** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser alterada <li>`uint8_t* uartBuffer:` buffer da uart <li>`uartBaudRate_t:` baudrate <li>`uartStopBits_t:` quantidade de stop bits <li>`parity:` paridade | Reinicia a uart com novas configurações. |
+| **APP_SendLog** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio de uma mensagem com timestamp e as  leituras da placa na porta de debug. |
+| **APP_SendPeriodicReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio de uma mensagem com timestamp e as  leituras da placa na porta de debug. |
+| **APP_SetRtcTime** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t seconds:` segundos para setar <li>`uint8_t minutes:` minutos para setar <li>`uint8_t hours:` horas para setar | Seta um novo horário no RTC |
+| **APP_SetRtcDate** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t day:` dia para setar <li>`uint8_t month:` mês para setar <li>`uint8_t year:` ano para setar | Seta uma nova data no RTC |
+| **APP_AddRtcTimestampToString** | <div align="center">`void`</div> | <ul><li>`string* String:` string de base <li>`RTC_HandleTypeDef* baseTime:` estrutura do RTC para adicionar | Adiciona o timestamp do RTC na string. |
 
 ### Callbacks das Interrupções
 
@@ -208,6 +332,9 @@ Referência: [embarcados.com.br/protocolo-modbus/](https://embarcados.com.br/pro
 | `MODBUS_WriteMultipleCoils` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstCoilAddress:` endereço da primeira bobina desejada <li>`uint16_t numberOfCoils:` número de bobinas para escrever <li>`uint8_t *valuesToWrite:` endereço do buffer com os valores para ser escritos | Faz uma requisição de escrita de multiplas bobinas. |
 | `MODBUS_WriteSingleHoldingRegister` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint32_t valueToWrite:` valor para escrever no registrador <li>`registerBytes_t sizeOfRegisterBytes:` tamanho do registrador | Faz uma requisição de escrita de um registrador. |
 | `MODBUS_WriteMultipleHoldingRegisters` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint16_t numberOfRegisters:` número de registradores para ler <li>`registerBytes_t sizeOfRegisterBytes:` tamanho em bytes dos registradores <li>`uint8_t *valuesToWrite:` buffer com os valores que serão escritos nos registradores | Faz uma requisição de escrita de multiplos registradores. |
+| `MODBUS_SendResponse` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t* responseBuffer:` buffer da resposta a enviar <li>`uint16_t responseBufferLength:` tamanho do buffer de resposta | Faz o envio de um buffer pelo modbus |
+| `MODBUS_UpdateHandler` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t* messageBuffer:` buffer da última mensagem do modbus | Atualiza o handler de acordo com as informações na mensagem. |
+| `MODBUS_SendError` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`modbusError_t error:` tipo do erro ocorrido | Envia uma mensagem de erro pelo modbus. |
 
 </details>
 
@@ -321,7 +448,6 @@ Trata o tipo "string" para facilitar a construção e envio de mensagens por uar
 | `STRING_CompareStringsRev` | `uint8_t:` 0 se as seções foram diferentes, 1 se forem iguais | <ul><li>`const string *string1:` primeira string <li>`const string *string2:` segunda string `uint16_t length:` tamanho da seção para comparar | Compara as seções de duas strings a partir do seu fim. |
 | `STRING_GetChar` | `uint8_t:` char armazenado na posição desejada | <ul><li>`const string *inputString:` string de origem <li>`uint16_t index:` indice do char desejado | Retorna um char armazenado dentro da string. |
 
-
 </details>
 
 #
@@ -336,12 +462,23 @@ Trata o tipo "string" para facilitar a construção e envio de mensagens por uar
 
 Funções utilitárias.
 
+### Structs
+
+| Struct | Componentes | Descrição |
+| --- | --- | --- |
+| `movingAverage_t` | <ul><li>`uint16_t buffer[MOVING_AVERAGE_MAX_BUFFER_SIZE]:` buffer onde os valores são armazenados; o tamanho máximo é 20 <li>`uint8_t index:` índice que aponta para o valor mais velho do buffer <li>`uint8_t size:` tamanho do buffer | Estrutura para implementação de médias móveis. |
+
 ### Funções
 
 | Função | Retorno | Parâmetros | Descrição |
 | --- | --- | --- | --- |
 | `UTILS_CpuSleep` | <div align="center">`void`</div> | <div align="center">`void`</div> | Coloca o microcontrolador no modo sleep. |
 | `UTILS_Map` | `float:` valor convertido | <ul><li>`float value:` valor para converter <li>`float fromMin:` limite inferior do valor original <li>`float fromMax:` limite superior do valor original <li>`float toMin:` limite inferior da conversão desejada <li>`float toMax:` limite superior da conversão desejada | Faz a conversão de um valor para outra base. |
+| `UTILS_MovingAverageInit` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel <li>`uint8_t size:` tamanho do buffer | Inicializa a estrutura de média móvel. |
+| `UTILS_MovingAverageAddValue` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel <li>`uint16_t value:` valor para adicionar ao buffer | Adiciona um valor no buffer da estrutura. |
+| `UTILS_MovingAverageGetValue` | `uint16_t:` valor da média | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel | Calcula e retorna a média dos valores armazenados na estrutura. |
+| `UTILS_MovingAverageClear` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel | Limpa os valores da estrutura. |
+| `UTILS_GetIntegerSpacesFromFloat` | `uint32_t:` quantidade de números inteiros calculada | <ul><li>`float float:` value | Calcula e retorna a quantidade de valores inteiros em um float. |
 
 </details>
 
