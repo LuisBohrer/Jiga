@@ -32,10 +32,6 @@ uint16_t adcVoltageCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNE
 uint16_t adcVoltageCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
 uint16_t adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 0};
 uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {[0 ... NUMBER_OF_CHANNELS-1] = 4095};
-//uint16_t adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {28, 14, 19, 11, 14, 20, 18, 13, 20, 16}; // led fraco
-//uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028, 4148, 4073, 4172, 4022, 4132, 4110};
-//uint16_t adcCurrentCalibrationMin[NUMBER_OF_CHANNELS] = {16, 13, 20, 26, 20, 22, 16, 27, 19, 17}; // led forte
-//uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {3951, 3939, 3949, 3947, 3946, 3942, 3949, 3948, 3944, 3937};
 
 const uint16_t MIN_ADC_READ = 0;
 const uint16_t MAX_ADC_READ = 4095;
@@ -151,7 +147,7 @@ typedef enum{
 static void APP_InitUarts(void);
 static void APP_InitTimers(void);
 static void APP_EnableSupplies(uint8_t supplyFlags);
-static void APP_DisableSupplies(uint8_t supplyFlags);
+void APP_DisableSupplies(uint8_t supplyFlags);
 static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_InitModbus(void);
 static void APP_UpdateReads(void);
@@ -164,7 +160,7 @@ static void APP_TreatModbusMessage(void);
 static void APP_TreatMasterRequest(string *request);
 static void APP_TreatSlaveResponse(string *request);
 static void APP_EnableModbus(void);
-static void APP_DisableModbus(void);
+void APP_DisableModbus(void);
 static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart);
 static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
 static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer, uartBaudRate_t baudRate, uartStopBits_t stopBits, uartParity_t parity);
@@ -200,7 +196,6 @@ void APP_init(){
 
     APP_SetRtcTime(&hrtc, 55, 38, 14);
     APP_SetRtcDate(&hrtc, 07, 02, 25);
-
 
     vLEDS_SetLedState(1, GPIO_PIN_SET);
     vLEDS_SetLedState(2, GPIO_PIN_RESET);
@@ -287,7 +282,7 @@ static void APP_EnableSupplies(uint8_t supplyFlags){
     }
 }
 
-static void APP_DisableSupplies(uint8_t supplyFlags){
+void APP_DisableSupplies(uint8_t supplyFlags){
     if(supplyFlags & SUPPLY_5V){
         HAL_GPIO_WritePin(LIGA5V_GPIO_Port, LIGA5V_Pin, GPIO_PIN_RESET);
     }
@@ -877,7 +872,7 @@ static void APP_EnableModbus(){
     modbusEnabled = 1;
 }
 
-static void APP_DisableModbus(){
+void APP_DisableModbus(){
     if(!modbusEnabled)
         return;
 

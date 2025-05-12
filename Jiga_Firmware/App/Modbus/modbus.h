@@ -71,8 +71,6 @@ typedef enum enMODBUS_Error{
     MODBUS_TIMEOUT = 0x67,
     MODBUS_INCORRECT_ID = 0X91,
     MODBUS_INCORRECT_OPCODE,
-//    MODBUS_INCORRECT_FIRST_REGISTER,
-//    MODBUS_INCORRECT_QTT_REGISTERS,
     MODBUS_INCORRECT_QTT_BYTES,
     MODBUS_RESPONSE_ERROR,
     MODBUS_INCORRECT_CRC = 0x96,
@@ -134,7 +132,7 @@ void MODBUS_WriteMultipleCoils(modbusHandler_t *modbusHandler, uint8_t secondary
 void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress, uint32_t valueToWrite, registerBytes_t sizeOfRegisterBytes);
 void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes, uint8_t *valuesToWrite);
 void MODBUS_SendResponse(modbusHandler_t *modbusHandler, uint8_t *responseBuffer, uint16_t responseBufferLength);
-void MODBUS_UpdateHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer);
+void MODBUS_UpdateHandler(modbusHandler_t *modbusHandler, uint8_t messageBuffer[6]);
 void MODBUS_SendError(modbusHandler_t *modbusHandler, modbusError_t error);
 
 // FUNCOES //

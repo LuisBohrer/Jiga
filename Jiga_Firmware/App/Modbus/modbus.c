@@ -329,7 +329,7 @@ void MODBUS_SendResponse(modbusHandler_t *modbusHandler, uint8_t *responseBuffer
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
 }
 
-void MODBUS_UpdateHandler(modbusHandler_t *modbusHandler, uint8_t *messageBuffer){
+void MODBUS_UpdateHandler(modbusHandler_t *modbusHandler, uint8_t messageBuffer[6]){
     modbusHandler->requestId = messageBuffer[0];
     modbusHandler->opcode = messageBuffer[1];
     modbusHandler->firstRegister = messageBuffer[2] << 8;
