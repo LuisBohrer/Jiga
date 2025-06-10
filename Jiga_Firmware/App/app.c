@@ -200,7 +200,7 @@ void APP_init(){
     vLEDS_SetLedState(1, GPIO_PIN_SET);
     vLEDS_SetLedState(2, GPIO_PIN_RESET);
     appStarted = 1;
-//    APP_CalibrateSensorsMin();
+    //APP_CalibrateSensorsMin();
 }
 
 void APP_poll(){
@@ -217,7 +217,7 @@ void APP_poll(){
         APP_UpdateDisplay();
         APP_RequestReads();
     }
-    //    APP_SendReadsMinute();
+    //APP_SendReadsMinute();
 
     UTILS_CpuSleep();
 }
@@ -488,8 +488,9 @@ static void APP_TreatDebugMessage(){
 
     debugRequest_t request = COMM_TreatResponse(&debugLastMessage);
     uint8_t length = 0;
-    if(request == INCOMPLETE_REQUEST)
+    if(request == INCOMPLETE_REQUEST){
         return;
+    }
 
     COMM_SendStartPacket();
     switch(request){
@@ -826,8 +827,7 @@ static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer
             break;
     }
 
-    if (HAL_UART_Init(huart) != HAL_OK)
-    {
+    if (HAL_UART_Init(huart) != HAL_OK){
         Error_Handler();
     }
 
