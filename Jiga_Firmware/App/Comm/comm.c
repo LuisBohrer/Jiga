@@ -31,7 +31,7 @@ void COMM_SendEndPacket(){
     HAL_UART_Transmit(debugUart, STRING_GetBuffer(&debugEndPacket), STRING_GetLength(&debugEndPacket), DEFAULT_UART_TIMEOUT);
 }
 
-void COMM_SendAck(debugAckSignals_t ack){
+void COMM_SendAck(debugRequest_t ack){
     uint8_t message = ack;
     HAL_UART_Transmit(debugUart, &message, 1, DEFAULT_UART_TIMEOUT);
 }

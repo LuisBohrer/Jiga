@@ -495,19 +495,21 @@ static void APP_TreatDebugMessage(){
     COMM_SendStartPacket();
     switch(request){
         case INVALID_REQUEST:
-            COMM_SendAck(NACK);
+            COMM_SendAck(INVALID_REQUEST);
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case SEND_VOLTAGE_READS:
             length = sizeof(convertedVoltageReads_int)/sizeof(uint8_t);
-            COMM_SendAck(ACK_VOLTAGE_READS);
+            COMM_SendAck(SEND_VOLTAGE_READS);
             COMM_SendChar(&length, 1);
             COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
             break;
 
         case SEND_CURRENT_READS:
             length = sizeof(convertedCurrentReads_int)/sizeof(uint8_t);
-            COMM_SendAck(ACK_CURRENT_READS);
+            COMM_SendAck(SEND_CURRENT_READS);
             COMM_SendChar(&length, 1);
             COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
             break;
@@ -515,23 +517,26 @@ static void APP_TreatDebugMessage(){
         case SEND_ALL_READS:
             length = sizeof(convertedVoltageReads_int)/sizeof(uint8_t)
                     + sizeof(convertedCurrentReads_int)/sizeof(uint8_t);
-            COMM_SendAck(ACK_ALL_READS);
+            COMM_SendAck(SEND_ALL_READS);
             COMM_SendChar(&length, 1);
             COMM_SendValues16Bits(convertedVoltageReads_int, NUMBER_OF_CHANNELS);
             COMM_SendValues16Bits(convertedCurrentReads_int, NUMBER_OF_CHANNELS);
             break;
 
         case SET_MODBUS_CONFIG:
-            COMM_SendAck(ACK_MODBUS_CONFIG);
+            COMM_SendAck(SET_MODBUS_CONFIG);
             APP_UpdateUartConfigs(MODBUS_UART,
                     &modbusLastChar,
                     STRING_GetChar(&debugLastMessage, 3),
                     STRING_GetChar(&debugLastMessage, 4),
                     STRING_GetChar(&debugLastMessage, 5));
+
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
 
         case CALIBRATE_VOLTAGE_MIN:
-            COMM_SendAck(ACK_CHANGE_SCALE);
+            COMM_SendAck(CALIBRATE_VOLTAGE_MIN);
             for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                 adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
             }
@@ -543,7 +548,7 @@ static void APP_TreatDebugMessage(){
             break;
 
         case CALIBRATE_VOLTAGE_MAX:
-            COMM_SendAck(ACK_CHANGE_SCALE);
+            COMM_SendAck(CALIBRATE_VOLTAGE_MAX);
             for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                 adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
             }
@@ -555,7 +560,7 @@ static void APP_TreatDebugMessage(){
             break;
 
         case CALIBRATE_CURRENT_MIN:
-            COMM_SendAck(ACK_CHANGE_SCALE);
+            COMM_SendAck(CALIBRATE_CURRENT_MIN);
             for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                 adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
             }
@@ -567,7 +572,7 @@ static void APP_TreatDebugMessage(){
             break;
 
         case CALIBRATE_CURRENT_MAX:
-            COMM_SendAck(ACK_CHANGE_SCALE);
+            COMM_SendAck(CALIBRATE_CURRENT_MAX);
             for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                 adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
             }
@@ -579,7 +584,7 @@ static void APP_TreatDebugMessage(){
             break;
 
         case RESET_VOLTAGE_MIN:
-            COMM_SendAck(ACK_CHANGE_SCALE);
+            COMM_SendAck(RESET_VOLTAGE_MIN);
             for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                 adcVoltageCalibrationMin[channel] = MIN_ADC_READ;
             }
@@ -591,7 +596,7 @@ static void APP_TreatDebugMessage(){
             break;
 
         case RESET_VOLTAGE_MAX:
-            COMM_SendAck(ACK_CHANGE_SCALE);
+            COMM_SendAck(RESET_VOLTAGE_MAX);
             for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                 adcVoltageCalibrationMax[channel] = MAX_ADC_READ;
             }
@@ -603,7 +608,7 @@ static void APP_TreatDebugMessage(){
             break;
 
         case RESET_CURRENT_MIN:
-            COMM_SendAck(ACK_CHANGE_SCALE);
+            COMM_SendAck(RESET_CURRENT_MIN);
             for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                 adcCurrentCalibrationMin[channel] = MIN_ADC_READ;
             }
@@ -615,7 +620,7 @@ static void APP_TreatDebugMessage(){
             break;
 
         case RESET_CURRENT_MAX:
-            COMM_SendAck(ACK_CHANGE_SCALE);
+            COMM_SendAck(RESET_CURRENT_MAX);
             for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
                 adcCurrentCalibrationMax[channel] = MAX_ADC_READ;
             }
@@ -627,12 +632,14 @@ static void APP_TreatDebugMessage(){
             break;
 
         case LOGS:
-            COMM_SendAck(ACK_LOGS);
+            COMM_SendAck(LOGS);
             APP_SendLog();
             break;
 
         default:
-            COMM_SendAck(NACK);
+            COMM_SendAck(INVALID_REQUEST);
+            length = 0;
+            COMM_SendChar(&length, 1);
             break;
     }
     COMM_SendEndPacket();
@@ -846,7 +853,7 @@ static void APP_SendLog(){
     APP_AddRtcTimestampToString(&logMessage, &hrtc);
     STRING_AddCharString(&logMessage, "\n\r");
     COMM_SendStartPacket();
-    COMM_SendAck(ACK_LOGS);
+    COMM_SendAck(LOGS);
     COMM_SendString(&logMessage);
 
     for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){

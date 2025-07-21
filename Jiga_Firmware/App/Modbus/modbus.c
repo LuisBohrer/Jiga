@@ -113,12 +113,6 @@ modbusError_t MODBUS_VerifyMessage(uint8_t expectedSecondaryAddress, uint8_t exp
     if(expectedOpcode != messageBuffer[1]){
         return MODBUS_INCORRECT_OPCODE;
     }
-//    if(expectedFirstAdress != ((messageBuffer[2] << 8) | messageBuffer[3])){
-//        return MODBUS_INCORRECT_FIRST_REGISTER;
-//    }
-//    if(expectedNumberOfData != ((messageBuffer[4] << 8) | messageBuffer[5])){
-//        return MODBUS_INCORRECT_QTT_REGISTERS;
-//    }
     if(expectedNumberOfData*2 != messageBuffer[2]){
         return MODBUS_INCORRECT_QTT_BYTES;
     }
@@ -142,12 +136,6 @@ modbusError_t MODBUS_VerifyWithHandler(modbusHandler_t *modbusHandler, uint8_t *
     if(modbusHandler->opcode != messageBuffer[1]){
         return MODBUS_INCORRECT_OPCODE;
     }
-//    if(modbusHandler->firstRegister != ((messageBuffer[2] << 8) | messageBuffer[3])){
-//        return MODBUS_INCORRECT_FIRST_REGISTER;
-//    }
-//    if(modbusHandler->qttRegisters != ((messageBuffer[4] << 8) | messageBuffer[5])){
-//        return MODBUS_INCORRECT_QTT_REGISTERS;
-//    }
     if(modbusHandler->qttBytes != messageBuffer[2]){
         return MODBUS_INCORRECT_QTT_BYTES;
     }
