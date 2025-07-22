@@ -127,8 +127,10 @@ volatile uint32_t updateReadsCounter_ms = 0;
 const uint32_t UPDATE_READS_PERIOD_MS = 5;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
+volatile uint32_t debugTimeBetweenByteCounter_ms = 0;
 const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500; // tempo maximo ate reconhecer como fim da mensagem
 const uint16_t MASTER_BUFFER_PERIOD = 1500; // tempo a mais esperado pelo mestre para receber uma resposta
+const uint16_t DEBUG_MAX_TIME_BETWEEN_BYTES_MS = 500;
 
 volatile uint32_t requestReadsCounter_ms = 0;
 const uint32_t REQUEST_READS_PERIOD_MS = 50; // tempo minimo de espera entre requisicoes
@@ -187,11 +189,11 @@ void APP_init(){
         UTILS_MovingAverageInit(&voltageMovingAverage[channel], MOVING_AVERAGE_BUFFER_SIZE);
         UTILS_MovingAverageInit(&currentMovingAverage[channel], MOVING_AVERAGE_BUFFER_SIZE);
 
-        EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t));
-        EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t));
-        EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t));
-        EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t));
     }
+    EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t));
+    EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t));
+    EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t));
+    EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t));
     APP_StartAdcReadDma(READ_VOLTAGE);
 
     APP_SetRtcTime(&hrtc, 55, 38, 14);
@@ -219,7 +221,7 @@ void APP_poll(){
     }
     //APP_SendReadsMinute();
 
-    UTILS_CpuSleep();
+//    UTILS_CpuSleep();
 }
 // Application functions //
 
@@ -479,19 +481,26 @@ static void APP_TreatDebugMessage(){
         RB_ClearBuffer(&debugRb);
         return;
     }
+    debugRequest_t request = INCOMPLETE_REQUEST;
     while(!RB_IsEmpty(&debugRb)){
         STRING_AddChar(&debugLastMessage, RB_GetByte(&debugRb));
+        request = COMM_TreatResponse(&debugLastMessage);
     }
     if(STRING_GetLength(&debugLastMessage) <= 0){
         return;
     }
 
-    debugRequest_t request = COMM_TreatResponse(&debugLastMessage);
     uint8_t length = 0;
+    if(debugTimeBetweenByteCounter_ms >= DEBUG_MAX_TIME_BETWEEN_BYTES_MS){
+        STRING_Clear(&debugLastMessage);
+    }
     if(request == INCOMPLETE_REQUEST){
         return;
     }
 
+    uint8_t channel = 0;
+    uint32_t address = 0;
+    HAL_StatusTypeDef status = 0;
     COMM_SendStartPacket();
     switch(request){
         case INVALID_REQUEST:
@@ -537,11 +546,19 @@ static void APP_TreatDebugMessage(){
 
         case CALIBRATE_VOLTAGE_MIN:
             COMM_SendAck(CALIBRATE_VOLTAGE_MIN);
-            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
-            }
-            length = sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t);
-            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, length);
+//            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+//                adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+//            }
+//            length = sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t);
+//            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, length);
+
+            channel = STRING_GetChar(&debugLastMessage, 4);
+            adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+            address = VOLTAGE_CALIBRATION_MIN_0 + 2*channel;
+            length = 2;
+            do{
+                status = EEPROM_Write(&hi2c1, (uint8_t*)&adcVoltageCalibrationMin[channel], address, length);
+            } while(status != HAL_OK);
 
             length = 0;
             COMM_SendChar(&length, 1);
@@ -549,11 +566,19 @@ static void APP_TreatDebugMessage(){
 
         case CALIBRATE_VOLTAGE_MAX:
             COMM_SendAck(CALIBRATE_VOLTAGE_MAX);
-            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
-            }
-            length = sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t);
-            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, length);
+//            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+//                adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+//            }
+//            length = sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t);
+//            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, length);
+
+            channel = STRING_GetChar(&debugLastMessage, 4);
+            adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
+            address = VOLTAGE_CALIBRATION_MAX_0 + 2*channel;
+            length = 2;
+            do{
+                status = EEPROM_Write(&hi2c1, (uint8_t*)&adcVoltageCalibrationMax[channel], address, length);
+            } while(status != HAL_OK);
 
             length = 0;
             COMM_SendChar(&length, 1);
@@ -561,11 +586,19 @@ static void APP_TreatDebugMessage(){
 
         case CALIBRATE_CURRENT_MIN:
             COMM_SendAck(CALIBRATE_CURRENT_MIN);
-            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
-            }
-            length = sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t);
-            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, length);
+//            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+//                adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+//            }
+//            length = sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t);
+//            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, length);
+
+            channel = STRING_GetChar(&debugLastMessage, 4);
+            adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+            address = CURRENT_CALIBRATION_MIN_0 + 2*channel;
+            length = 2;
+            do{
+                status = EEPROM_Write(&hi2c1, (uint8_t*)&adcCurrentCalibrationMin[channel], address, length);
+            } while(status != HAL_OK);
 
             length = 0;
             COMM_SendChar(&length, 1);
@@ -573,11 +606,19 @@ static void APP_TreatDebugMessage(){
 
         case CALIBRATE_CURRENT_MAX:
             COMM_SendAck(CALIBRATE_CURRENT_MAX);
-            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-                adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
-            }
-            length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
-            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, length);
+//            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+//                adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+//            }
+//            length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
+//            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, length);
+
+            channel = STRING_GetChar(&debugLastMessage, 4);
+            adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
+            address = CURRENT_CALIBRATION_MAX_0 + 2*channel;
+            length = 2;
+            do{
+                status = EEPROM_Write(&hi2c1, (uint8_t*)&adcCurrentCalibrationMax[channel], address, length);
+            } while(status != HAL_OK);
 
             length = 0;
             COMM_SendChar(&length, 1);
@@ -956,6 +997,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
     }
 
     else if(huart == DEBUG_UART){
+        debugTimeBetweenByteCounter_ms = 0;
         if(appStarted){
             RB_PutByte(&debugRb, debugLastChar);
         }
@@ -989,6 +1031,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
         }
         if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD){
             modbusTimeBetweenByteCounter_ms++;
+        }
+        if(debugTimeBetweenByteCounter_ms < DEBUG_MAX_TIME_BETWEEN_BYTES_MS){
+            debugTimeBetweenByteCounter_ms++;
         }
         if(requestReadsCounter_ms < REQUEST_READS_PERIOD_MS){
             requestReadsCounter_ms++;
