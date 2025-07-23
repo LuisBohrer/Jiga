@@ -134,6 +134,9 @@ const uint16_t DEBUG_MAX_TIME_BETWEEN_BYTES_MS = 500;
 
 volatile uint32_t requestReadsCounter_ms = 0;
 const uint32_t REQUEST_READS_PERIOD_MS = 50; // tempo minimo de espera entre requisicoes
+
+volatile uint32_t testDisplayConnectionCounter_ms = 0;
+const uint32_t TEST_DISPLAY_CONNECTION_PERIOD_MS = 2000;
 // Timer counters and periods //
 
 // Board supply enables declarations // [Section]
@@ -447,9 +450,15 @@ static void APP_TreatDisplayMessage(){
         STRING_AddChar(&displayLastMessage, RB_GetByte(&displayRb));
     }
     RB_ClearBuffer(&displayRb);
+    if(testDisplayConnectionCounter_ms >= TEST_DISPLAY_CONNECTION_PERIOD_MS){
+        APP_DisableUartInterrupt(DISPLAY_UART);
+        APP_EnableUartInterrupt(DISPLAY_UART);
+        testDisplayConnectionCounter_ms = 0;
+    }
     if(STRING_GetLength(&displayLastMessage) <= 0){
         return;
     }
+    testDisplayConnectionCounter_ms = 0; // recebeu uma mensagem do display -> conexao ok
 
     displayResponses_t aux = NEXTION_TreatMessage(&displayLastMessage);
 
@@ -1036,6 +1045,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
             debugTimeBetweenByteCounter_ms++;
         }
         if(requestReadsCounter_ms < REQUEST_READS_PERIOD_MS){
+            requestReadsCounter_ms++;
+        }
+        if(testDisplayConnectionCounter_ms < TEST_DISPLAY_CONNECTION_PERIOD_MS){
             requestReadsCounter_ms++;
         }
 
