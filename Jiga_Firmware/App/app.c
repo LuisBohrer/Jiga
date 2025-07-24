@@ -224,7 +224,7 @@ void APP_poll(){
     }
     //APP_SendReadsMinute();
 
-//    UTILS_CpuSleep();
+    //UTILS_CpuSleep(); // nao liga o display
 }
 // Application functions //
 
@@ -451,7 +451,7 @@ static void APP_TreatDisplayMessage(){
     }
     RB_ClearBuffer(&displayRb);
     if(testDisplayConnectionCounter_ms >= TEST_DISPLAY_CONNECTION_PERIOD_MS){
-        APP_DisableUartInterrupt(DISPLAY_UART);
+        APP_DisableUartInterrupt(DISPLAY_UART); // reseta a uart se nao recebeu mensagens por muito tempo
         APP_EnableUartInterrupt(DISPLAY_UART);
         testDisplayConnectionCounter_ms = 0;
     }
@@ -555,11 +555,6 @@ static void APP_TreatDebugMessage(){
 
         case CALIBRATE_VOLTAGE_MIN:
             COMM_SendAck(CALIBRATE_VOLTAGE_MIN);
-//            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-//                adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
-//            }
-//            length = sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t);
-//            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, length);
 
             channel = STRING_GetChar(&debugLastMessage, 4);
             adcVoltageCalibrationMin[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
@@ -575,11 +570,6 @@ static void APP_TreatDebugMessage(){
 
         case CALIBRATE_VOLTAGE_MAX:
             COMM_SendAck(CALIBRATE_VOLTAGE_MAX);
-//            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-//                adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
-//            }
-//            length = sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t);
-//            EEPROM_Write(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, length);
 
             channel = STRING_GetChar(&debugLastMessage, 4);
             adcVoltageCalibrationMax[channel] = UTILS_MovingAverageGetValue(&voltageMovingAverage[channel]);
@@ -595,11 +585,6 @@ static void APP_TreatDebugMessage(){
 
         case CALIBRATE_CURRENT_MIN:
             COMM_SendAck(CALIBRATE_CURRENT_MIN);
-//            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-//                adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
-//            }
-//            length = sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t);
-//            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, length);
 
             channel = STRING_GetChar(&debugLastMessage, 4);
             adcCurrentCalibrationMin[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
@@ -615,11 +600,6 @@ static void APP_TreatDebugMessage(){
 
         case CALIBRATE_CURRENT_MAX:
             COMM_SendAck(CALIBRATE_CURRENT_MAX);
-//            for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-//                adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
-//            }
-//            length = sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t);
-//            EEPROM_Write(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, length);
 
             channel = STRING_GetChar(&debugLastMessage, 4);
             adcCurrentCalibrationMax[channel] = UTILS_MovingAverageGetValue(&currentMovingAverage[channel]);
