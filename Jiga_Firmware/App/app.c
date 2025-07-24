@@ -357,9 +357,6 @@ static void APP_UpdateReads(){
                     convertedVoltageReads_V[0][channel] = UTILS_Map(voltageValue,
                             adcVoltageCalibrationMin[channel], adcVoltageCalibrationMax[channel],
                             MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
-                    if(convertedVoltageReads_V[0][channel] < 0){
-                        convertedVoltageReads_V[0][channel] = 0;
-                    }
                 }
                 break;
 
@@ -379,9 +376,6 @@ static void APP_UpdateReads(){
                     convertedCurrentReads_mA[0][channel] = UTILS_Map(currentValue,
                             adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
                             MIN_CURRENT_READ, MAX_CURRENT_READ);
-                    if(convertedCurrentReads_mA[0][channel] < 0){
-                        convertedCurrentReads_mA[0][channel] = 0;
-                    }
                 }
                 break;
         }
@@ -426,31 +420,39 @@ static void APP_UpdateDisplay(void){
     }
 
     for(uint8_t placa = 0; placa < MODBUS_NUMBER_OF_DEVICES; placa++){
-        for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-            uint16_t integerSpaces =  UTILS_GetIntegerSpacesFromFloat(convertedVoltageReads_V[placa][i]);
+        for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
+            uint16_t value = convertedVoltageReads_V[placa][channel];
+            if(value < 0){
+                value = 0;
+            }
+            uint16_t integerSpaces =  UTILS_GetIntegerSpacesFromFloat(value);
             uint16_t decimalSpaces = NUMBER_OF_DIGITS_IN_BOX - integerSpaces;
             if(decimalSpaces > 2){
                 decimalSpaces = 2;
             }
 
             if(placa == 0){
-                NEXTION_SetComponentFloatValue(&voltageTxtBx1[i], convertedVoltageReads_V[placa][i], integerSpaces, decimalSpaces);
+                NEXTION_SetComponentFloatValue(&voltageTxtBx1[channel], value, integerSpaces, decimalSpaces);
             }
             else{
-                NEXTION_SetComponentFloatValue(&voltageTxtBx2[i], convertedVoltageReads_V[placa][i], integerSpaces, decimalSpaces);
+                NEXTION_SetComponentFloatValue(&voltageTxtBx2[channel], value, integerSpaces, decimalSpaces);
             }
 
-            integerSpaces = UTILS_GetIntegerSpacesFromFloat(convertedCurrentReads_mA[placa][i]);
+            value = convertedCurrentReads_mA[placa][channel];
+            if(value < 0){
+                value = 0;
+            }
+            integerSpaces = UTILS_GetIntegerSpacesFromFloat(value);
             decimalSpaces = NUMBER_OF_DIGITS_IN_BOX - integerSpaces;
             if(decimalSpaces > 2){
                 decimalSpaces = 2;
             }
 
             if(placa == 0){
-                NEXTION_SetComponentFloatValue(&currentTxtBx1[i], convertedCurrentReads_mA[placa][i], integerSpaces, decimalSpaces);
+                NEXTION_SetComponentFloatValue(&currentTxtBx1[channel], value, integerSpaces, decimalSpaces);
             }
             else{
-                NEXTION_SetComponentFloatValue(&currentTxtBx2[i], convertedCurrentReads_mA[placa][i], integerSpaces, decimalSpaces);
+                NEXTION_SetComponentFloatValue(&currentTxtBx2[channel], value, integerSpaces, decimalSpaces);
             }
             HAL_Delay(1);
         }
@@ -480,7 +482,7 @@ static void APP_TreatDisplayMessage(){
     if(STRING_GetLength(&displayLastMessage) <= 0){
         return;
     }
-    testDisplayConnectionCounter_ms = 0; // recebeu uma mensagem dodisplay -> conexao ok
+    testDisplayConnectionCounter_ms = 0; // recebeu uma mensagem do display -> conexao ok
 
     displayResponses_t aux = NEXTION_TreatMessage(&displayLastMessage);
 
