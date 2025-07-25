@@ -279,7 +279,7 @@ static void APP_InitModbus(void){
         DEVICE_ADDRESS += 0x6C;
     }
 
-    // Organizandoo array de acordo com a lista de registradores em regs.h
+    // Organizandoo array de acordo com a lista de registradores em registers.h
     for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
         inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
         inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
@@ -777,18 +777,12 @@ static void APP_TreatSlaveResponse(string *response){
                             UTILS_Map(incomingShort,
                                     MIN_ADC_READ, MAX_ADC_READ,
                                     MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
-                    if(convertedVoltageReads_V[modbusHandler.requestId - 0x6C + 1][channel] < 0){
-                        convertedVoltageReads_V[modbusHandler.requestId - 0x6C + 1][channel] = 0;
-                    }
                 }
                 else{
                     convertedCurrentReads_mA[modbusHandler.requestId - 0x6C + 1][channel] =
                             UTILS_Map(incomingShort,
                                     MIN_ADC_READ, MAX_ADC_READ,
                                     MIN_CURRENT_READ, MAX_CURRENT_READ);
-                    if(convertedCurrentReads_mA[modbusHandler.requestId - 0x6C + 1][channel] < 0){
-                        convertedCurrentReads_mA[modbusHandler.requestId - 0x6C + 1][channel] = 0;
-                    }
                 }
             }
             break;
