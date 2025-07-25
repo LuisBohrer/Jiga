@@ -209,6 +209,7 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | Enum | Componentes | Descrição |
 | --- | --- | --- |
 | `reading_t` | <ul><li>`READ_VOLTAGE` <li>`READ_CURRENT` | Tipos de leitura do ADC. |
+| `calibration_t` | <ul><li>`VOLTAGE_MIN` <li>`VOLTAGE_MAX` <li>`CURRENT_MIN` <li>`CURRENT_MAX` | Tipos de valores para a calibração do Adc. |
 | `displayOpcodes_t` | <ul><li>`SET_AS_MASTER` | Opcodes do display. |
 | `uartBaudRate_t` | <ul><li>`BAUD_RATE_9600` <li>`BAUD_RATE_19200` <li>`BAUD_RATE_115200` | Baudrates usados. |
 | `uartStopBits_t` | <ul><li>`STOP_BITS_0_5` <li>`STOP_BITS_1` <li>`STOP_BITS_1_5` <li>`STOP_BITS_2` | Número de stop bits usados. |
@@ -240,6 +241,8 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | **APP_SetRtcTime** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t seconds:` segundos para setar <li>`uint8_t minutes:` minutos para setar <li>`uint8_t hours:` horas para setar | Seta um novo horário no RTC |
 | **APP_SetRtcDate** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t day:` dia para setar <li>`uint8_t month:` mês para setar <li>`uint8_t year:` ano para setar | Seta uma nova data no RTC |
 | **APP_AddRtcTimestampToString** | <div align="center">`void`</div> | <ul><li>`string* String:` string de base <li>`RTC_HandleTypeDef* baseTime:` estrutura do RTC para adicionar | Adiciona o timestamp do RTC na string. |
+|**APP_CalibrateAdcChannel** | <div align="center">`void`</div> | <ul><li>`uint8_t channel:` canal do Adc (1 a 10) <li>`calibration_t typeOfCalibration:` calibrar tensão ou corrente, mínimo ou máximo | Calibra o valor mínimo ou máximo de um canal do Adc de acordo com as leituras atuais. |
+|**APP_ResetAdcCalibration** | <div align="center">`void`</div> | <ul><li>`uint8_t channel:` canal do Adc (1 a 10) <li>`calibration_t typeOfCalibration:` calibrar tensão ou corrente, mínimo ou máximo | Reseta o valor mínimo ou máximo de um canal do Adc. |
 
 ### Callbacks das Interrupções
 
@@ -267,8 +270,7 @@ Cuida da comunicação de debug (coletora) da placa. Ainda precisa definir uma l
 
 | Nome | Constantes | Descrição |
 | --- | --- | --- |
-| `debugRequest_t` | <ul><li>`INCOMPLETE_REQUEST` <li>`INVALID_REQUEST` <li>`SEND_VOLTAGE_READS` <li>`SEND_CURRENT_READS` <li>`SEND_ALL_READS` <li>`SET_MODBUS_CONFIG` <li>`CHANGE_SCALE` <li>`LOGS` | Lista de requisições que podem ser feitas à placa. Provisória, passível de mudança. |
-| `debugAckSignals_t` | <ul><li>`NACK` = 1 <li>`ACK_VOLTAGE_READS` <li>`ACK_CURRENT_READS` <li>`ACK_ALL_READS` <li>`ACK_MODBUS_CONFIG` <li>`ACK_CHANGE_SCALE` <li>`ACK_LOGS` = 22 | Lista de sinais de resposta às respectivas requisições. Provisória, passível de mudança. |
+| `debugRequest_t` | <ul><li>`INCOMPLETE_REQUEST` <li>`INVALID_REQUEST` <li>`CALIBRATE_VOLTAGE_MIN` <li>`CALIBRATE_VOLTAGE_MAX` <li>`CALIBRATE_CURRENT_MIN` <li>`CALIBRATE_CURRENT_MAX` <li>`RESET_VOLTAGE_MIN` <li>`RESET_VOLTAGE_MAX` <li>`RESET_CURRENT_MIN` <li>`RESET_CURRENT_MAX` <li>`SEND_VOLTAGE_READS` <li>`SEND_CURRENT_READS` <li>`SEND_ALL_READS` <li>`SET_MODBUS_CONFIG` <li>`LOGS` | Lista de requisições que podem ser feitas à placa. |
 
 ### Funções
 
