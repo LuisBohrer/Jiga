@@ -241,8 +241,8 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | **APP_SetRtcTime** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t seconds:` segundos para setar <li>`uint8_t minutes:` minutos para setar <li>`uint8_t hours:` horas para setar | Seta um novo horário no RTC |
 | **APP_SetRtcDate** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t day:` dia para setar <li>`uint8_t month:` mês para setar <li>`uint8_t year:` ano para setar | Seta uma nova data no RTC |
 | **APP_AddRtcTimestampToString** | <div align="center">`void`</div> | <ul><li>`string* String:` string de base <li>`RTC_HandleTypeDef* baseTime:` estrutura do RTC para adicionar | Adiciona o timestamp do RTC na string. |
-|**APP_CalibrateAdcChannel** | <div align="center">`void`</div> | <ul><li>`uint8_t channel:` canal do Adc (1 a 10) <li>`calibration_t typeOfCalibration:` calibrar tensão ou corrente, mínimo ou máximo | Calibra o valor mínimo ou máximo de um canal do Adc de acordo com as leituras atuais. |
-|**APP_ResetAdcCalibration** | <div align="center">`void`</div> | <ul><li>`uint8_t channel:` canal do Adc (1 a 10) <li>`calibration_t typeOfCalibration:` calibrar tensão ou corrente, mínimo ou máximo | Reseta o valor mínimo ou máximo de um canal do Adc. |
+|**APP_CalibrateAdcChannel** | <div align="center">`void`</div> | <ul><li>`uint8_t channel:` canal do Adc; 0 a 9 para canais individuais, 10 para calibrar todos os canais <li>`calibration_t typeOfCalibration:` calibrar tensão ou corrente, mínimo ou máximo | Calibra o valor mínimo ou máximo de um canal do Adc de acordo com as leituras atuais. |
+|**APP_ResetAdcCalibration** | <div align="center">`void`</div> | <ul><li>`uint8_t channel:` canal do Adc; 0 a 9 para canais individuais, 10 para calibrar todos os canais <li>`calibration_t typeOfCalibration:` calibrar tensão ou corrente, mínimo ou máximo | Reseta o valor mínimo ou máximo de um canal do Adc. |
 
 ### Callbacks das Interrupções
 
