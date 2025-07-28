@@ -515,7 +515,7 @@ static void APP_TreatDebugMessage(){
         return;
     }
     debugRequest_t request = INCOMPLETE_REQUEST;
-    while(!RB_IsEmpty(&debugRb)){
+    while(!RB_IsEmpty(&debugRb) && (request == INCOMPLETE_REQUEST || request == INVALID_REQUEST)){
         STRING_AddChar(&debugLastMessage, RB_GetByte(&debugRb));
         request = COMM_TreatResponse(&debugLastMessage);
     }

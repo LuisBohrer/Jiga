@@ -10,8 +10,9 @@
 
 void STRING_Init(string *self){
     self->length = 0;
-    for(uint16_t i = 0; i < BUFFER_SIZE; i++)
+    for(uint16_t i = 0; i < BUFFER_SIZE; i++){
         self->buffer[i] = '\0';
+    }
 }
 
 uint8_t* STRING_GetBuffer(string *self){
@@ -27,18 +28,14 @@ void STRING_AddChar(string *self, char character){
 }
 
 void STRING_AddInt(string *self, int32_t number){
-    uint64_t i = pow(10, 10);
     if(number < 0){
         self->buffer[self->length++] = '-';
         number*=-1;
     }
 
-    while(floor(number/i) == 0 && i > 1) i/=10;
-
-    while(i >= 1){
-        int32_t resto = number/i;
+    for(int8_t i = (int8_t)log10f(number); i >= 0; i--){
+        int32_t resto = number/pow(10, i);
         self->buffer[self->length++] = resto%10 + '0';
-        i/=10;
     }
 }
 
@@ -98,7 +95,9 @@ int32_t STRING_StringToInt(const string *inputString){
     uint32_t i = 0;
     int32_t result = 0;
     int8_t signal = 1;
-    while(i < inputString->length && !STRING_IsDigit(inputString->buffer[i])) i++;
+    while(i < inputString->length && !STRING_IsDigit(inputString->buffer[i])){
+        i++;
+    }
     if(i >= 1){
         if(inputString->buffer[i - 1] == '-'){
             signal = -1;
@@ -149,10 +148,12 @@ float STRING_StringToFloat(const string *inputString, char separator){
 }
 
 uint8_t STRING_CompareStrings(const string *string1, const string *string2, uint16_t length){
-    if(length > string1->length)
+    if(length > string1->length){
         length = string1->length;
-    if(length > string2->length)
+    }
+    if(length > string2->length){
         length = string2->length;
+    }
     for(uint16_t i = 0; i < length; i++){
         if(string1->buffer[i] != string2->buffer[i]){
             return 0;
@@ -162,13 +163,13 @@ uint8_t STRING_CompareStrings(const string *string1, const string *string2, uint
 }
 
 uint8_t STRING_CompareStringsRev(const string *string1, const string *string2, uint16_t length){
-    if(length > string1->length)
+    if(length > string1->length){
         length = string1->length;
-    if(length > string2->length)
+    }
+    if(length > string2->length){
         length = string2->length;
+    }
     for(uint16_t i = 0; i < length; i++){
-//        if(i <= string1->length || i <= string2->length)
-//            return 1;
         if(string1->buffer[string1->length - i - 1] != string2->buffer[string2->length - i - 1]){
             return 0;
         }
@@ -177,7 +178,8 @@ uint8_t STRING_CompareStringsRev(const string *string1, const string *string2, u
 }
 
 uint8_t STRING_GetChar(const string *inputString, uint16_t index){
-    if(index >= inputString->length)
+    if(index >= inputString->length){
         return 0;
+    }
     return inputString->buffer[index];
 }
