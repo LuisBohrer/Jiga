@@ -95,8 +95,9 @@ void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendO
 }
 
 sendOrReceive_t MODBUS_GetSendReceive(modbusHandler_t *modbusHandler){
-    if(modbusHandler->modbusState == MODBUS_SENDING)
+    if(modbusHandler->modbusState == MODBUS_SENDING){
         return MODBUS_SENDING;
+    }
     return MODBUS_RECEIVING;
 }
 
