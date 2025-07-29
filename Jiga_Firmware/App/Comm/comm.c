@@ -12,23 +12,21 @@
 UART_HandleTypeDef *debugUart;
 const uint32_t DEFAULT_UART_TIMEOUT = 200;
 
-#define SIZE_OF_DEBUG_START_PACKET 2
-//const uint8_t debugStartPacket[SIZE_OF_DEBUG_START_PACKET] = {0x23, 0x23};
-string debugStartPacket = {{0x23, 0x23}, 2};
-#define SIZE_OF_DEBUG_END_PACKET 1
-//const uint8_t debugEndPacket[SIZE_OF_DEBUG_END_PACKET] = {0x40};
-string debugEndPacket = {{0x40}, 1};
+const uint16_t SIZE_OF_DEBUG_START_PACKET = 2;
+const string debugStartPacket = {{0x23, 0x23}, SIZE_OF_DEBUG_START_PACKET};
+const uint16_t SIZE_OF_DEBUG_END_PACKET = 1;
+const string debugEndPacket = {{0x40}, SIZE_OF_DEBUG_END_PACKET};
 
 void COMM_Begin(UART_HandleTypeDef *huart){
     debugUart = huart;
 }
 
 void COMM_SendStartPacket(){
-    HAL_UART_Transmit(debugUart, STRING_GetBuffer(&debugStartPacket), STRING_GetLength(&debugStartPacket), DEFAULT_UART_TIMEOUT);
+    HAL_UART_Transmit(debugUart, STRING_GetBuffer((string*)&debugStartPacket), STRING_GetLength((string*)&debugStartPacket), DEFAULT_UART_TIMEOUT);
 }
 
 void COMM_SendEndPacket(){
-    HAL_UART_Transmit(debugUart, STRING_GetBuffer(&debugEndPacket), STRING_GetLength(&debugEndPacket), DEFAULT_UART_TIMEOUT);
+    HAL_UART_Transmit(debugUart, STRING_GetBuffer((string*)&debugEndPacket), STRING_GetLength((string*)&debugEndPacket), DEFAULT_UART_TIMEOUT);
 }
 
 void COMM_SendAck(debugRequest_t ack){
@@ -57,14 +55,18 @@ void COMM_SendChar(uint8_t *buffer, uint16_t length){
 }
 
 debugRequest_t COMM_TreatResponse(string *message){
-    if(STRING_GetLength(message) <= 3)
+    if(STRING_GetLength(message) <= 3){
         return INCOMPLETE_REQUEST;
-    if(!STRING_CompareStringsRev(message, &debugEndPacket, STRING_GetLength(&debugEndPacket)))
+    }
+    if(!STRING_CompareStringsRev(message, &debugEndPacket, STRING_GetLength(&debugEndPacket))){
         return INCOMPLETE_REQUEST;
-    if(!STRING_CompareStrings(message, &debugStartPacket, STRING_GetLength(&debugStartPacket)))
+    }
+    if(!STRING_CompareStrings(message, &debugStartPacket, STRING_GetLength(&debugStartPacket))){
         return INVALID_REQUEST;
-    if(STRING_GetChar(message, 2) == INCOMPLETE_REQUEST)
+    }
+    if(STRING_GetChar(message, 2) == INCOMPLETE_REQUEST){
         return INVALID_REQUEST;
+    }
 
     return (debugRequest_t) STRING_GetChar(message, 2);
 }

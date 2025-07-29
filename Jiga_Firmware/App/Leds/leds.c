@@ -16,8 +16,8 @@ uint16_t led2BlinkPeriod = 0;
 uint16_t led3BlinkPeriod = 0;
 uint16_t led4BlinkPeriod = 0;
 
-void vLEDS_SetLedState(uint8_t ui8LedNumber, GPIO_PinState estado){
-    switch(ui8LedNumber){
+void LEDS_SetLedState(uint8_t ledNumber, GPIO_PinState estado){
+    switch(ledNumber){
         case 1:
             HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, estado);
             break;
@@ -29,8 +29,8 @@ void vLEDS_SetLedState(uint8_t ui8LedNumber, GPIO_PinState estado){
     }
 }
 
-GPIO_PinState ui8LEDS_GetLedState(uint8_t ui8LedNumber){
-    switch(ui8LedNumber){
+GPIO_PinState LEDS_GetLedState(uint8_t ledNumber){
+    switch(ledNumber){
         case 1:
             return HAL_GPIO_ReadPin(LED1_GPIO_Port, LED1_Pin);
         case 2:
@@ -40,35 +40,35 @@ GPIO_PinState ui8LEDS_GetLedState(uint8_t ui8LedNumber){
     }
 }
 
-void vLEDS_ToggleLed(uint8_t ui8LedNumber){
-    uint8_t vLEDS_ToggleLed_estado = !ui8LEDS_GetLedState(ui8LedNumber);
-    switch(ui8LedNumber){
+void LEDS_ToggleLed(uint8_t ledNumber){
+    uint8_t estado = !LEDS_GetLedState(ledNumber);
+    switch(ledNumber){
         case 1:
-            HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, vLEDS_ToggleLed_estado);
+            HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, estado);
             break;
         case 2:
-            HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, vLEDS_ToggleLed_estado);
+            HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, estado);
             break;
         default:
             break;
     }
 }
 
-void vLEDS_AcendeTodos(){
+void LEDS_AcendeTodos(){
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_SET);
 }
 
-void vLEDS_ApagaTodos(){
+void LEDS_ApagaTodos(){
     HAL_GPIO_WritePin(LED1_GPIO_Port, LED1_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LED2_GPIO_Port, LED2_Pin, GPIO_PIN_RESET);
 }
 
-void vLEDS_StartBlinkLed(uint8_t ui8LedNumber, uint16_t blinkPeriod_ms){
-    if(ui8LedNumber > NUMBER_OF_LEDS)
+void LEDS_StartBlinkLed(uint8_t ledNumber, uint16_t blinkPeriod_ms){
+    if(ledNumber > NUMBER_OF_LEDS)
         return;
 
-    switch(ui8LedNumber){
+    switch(ledNumber){
         case 1:
             led1BlinkPeriod = blinkPeriod_ms;
             break;
@@ -80,25 +80,26 @@ void vLEDS_StartBlinkLed(uint8_t ui8LedNumber, uint16_t blinkPeriod_ms){
     }
 }
 
-void vLEDS_StopBlinkLed(uint8_t ui8LedNumber){
-    if(ui8LedNumber > NUMBER_OF_LEDS)
+void LEDS_StopBlinkLed(uint8_t ledNumber){
+    if(ledNumber > NUMBER_OF_LEDS){
         return;
+    }
 
-    switch(ui8LedNumber){
+    switch(ledNumber){
         case 1:
             led1BlinkPeriod = 0;
-            vLEDS_SetLedState(1, GPIO_PIN_RESET);
+            LEDS_SetLedState(1, GPIO_PIN_RESET);
             break;
         case 2:
             led2BlinkPeriod = 0;
-            vLEDS_SetLedState(2, GPIO_PIN_RESET);
+            LEDS_SetLedState(2, GPIO_PIN_RESET);
             break;
         default:
             break;
     }
 }
 
-void vLEDS_LedsTimerCallback(){
+void LEDS_LedsTimerCallback(){
     static uint16_t led1Counter = 0;
     static uint16_t led2Counter = 0;
 
@@ -107,7 +108,7 @@ void vLEDS_LedsTimerCallback(){
             led1Counter++;
         }
         else{
-            vLEDS_ToggleLed(1);
+            LEDS_ToggleLed(1);
             led1Counter = 0;
         }
     }
@@ -117,7 +118,7 @@ void vLEDS_LedsTimerCallback(){
             led2Counter++;
         }
         else{
-            vLEDS_ToggleLed(2);
+            LEDS_ToggleLed(2);
             led2Counter = 0;
         }
     }

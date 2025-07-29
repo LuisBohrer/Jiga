@@ -212,8 +212,8 @@ void APP_init(){
     APP_SetRtcTime(&hrtc, 55, 38, 14);
     APP_SetRtcDate(&hrtc, 07, 02, 25);
 
-    vLEDS_SetLedState(1, GPIO_PIN_SET);
-    vLEDS_SetLedState(2, GPIO_PIN_RESET);
+    LEDS_SetLedState(1, GPIO_PIN_SET);
+    LEDS_SetLedState(2, GPIO_PIN_RESET);
     appStarted = 1;
 }
 
@@ -689,14 +689,14 @@ static void APP_TreatModbusMessage(){
     if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS){
         STRING_Clear(&modbusLastMessage);
         modbusWaitingForResponse = 0;
-        vLEDS_SetLedState(2, GPIO_PIN_RESET);
+        LEDS_SetLedState(2, GPIO_PIN_RESET);
         return;
     }
     if(RB_IsEmpty(&modbusRb)){
         return;
     }
 
-    vLEDS_SetLedState(2, GPIO_PIN_SET);
+    LEDS_SetLedState(2, GPIO_PIN_SET);
     while(!RB_IsEmpty(&modbusRb)){
         STRING_AddChar(&modbusLastMessage, RB_GetByte(&modbusRb));
     }
@@ -716,7 +716,7 @@ static void APP_TreatModbusMessage(){
         }
     }
     STRING_Clear(&modbusLastMessage);
-    vLEDS_SetLedState(2, GPIO_PIN_RESET);
+    LEDS_SetLedState(2, GPIO_PIN_RESET);
 }
 
 static void APP_TreatMasterRequest(string *request){
@@ -1155,7 +1155,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
             testDisplayConnectionCounter_ms++;
         }
 
-        vLEDS_LedsTimerCallback();
+        LEDS_LedsTimerCallback();
     }
 }
 

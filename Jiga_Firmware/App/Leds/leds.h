@@ -11,13 +11,13 @@
 #include <stdint.h>
 #include "main.h"
 
-void vLEDS_SetLedState(uint8_t ui8LedNumber, GPIO_PinState estado);
-GPIO_PinState ui8LEDS_GetLedState(uint8_t ui8LedNumber);
-void vLEDS_ToggleLed(uint8_t ui8LedNumber);
-void vLEDS_AcendeTodos();
-void vLEDS_ApagaTodos();
-void vLEDS_StartBlinkLed(uint8_t ui8LedNumber, uint16_t blinkPeriod_ms);
-void vLEDS_StopBlinkLed(uint8_t ui8LedNumber);
-void vLEDS_LedsTimerCallback(void);
+void LEDS_SetLedState(uint8_t ledNumber, GPIO_PinState estado);
+GPIO_PinState LEDS_GetLedState(uint8_t ledNumber);
+void LEDS_ToggleLed(uint8_t ledNumber);
+void LEDS_AcendeTodos();
+void LEDS_ApagaTodos();
+void LEDS_StartBlinkLed(uint8_t ledNumber, uint16_t blinkPeriod_ms);
+void LEDS_StopBlinkLed(uint8_t ledNumber);
+void LEDS_LedsTimerCallback(void);
 
 #endif /* LEDS_LEDS_H_ */
