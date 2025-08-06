@@ -118,7 +118,7 @@ string modbusLastMessage;
 
 // Modbus declarations // [Section]
 modbusHandler_t modbusHandler;
-uint8_t DEVICE_ADDRESS = 0; // 0 representa o mestre
+uint8_t DEVICE_ADDRESS = 255; // 0 representa o mestre
 
 uint8_t modbusMaster = 0; // flag para identificar o mestre
 uint8_t modbusWaitingForResponse = 0;
@@ -134,13 +134,13 @@ volatile uint32_t updateReadsCounter_ms = 0;
 const uint32_t UPDATE_READS_PERIOD_MS = 5;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
-volatile uint32_t debugTimeBetweenByteCounter_ms = 0;
 const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500; // tempo maximo ate reconhecer como fim da mensagem
 const uint16_t MASTER_BUFFER_PERIOD = 1500; // tempo a mais esperado pelo mestre para receber uma resposta
+volatile uint32_t debugTimeBetweenByteCounter_ms = 0;
 const uint16_t DEBUG_MAX_TIME_BETWEEN_BYTES_MS = 500;
 
 volatile uint32_t requestReadsCounter_ms = 0;
-const uint32_t REQUEST_READS_PERIOD_MS = 50; // tempo minimo de espera entre requisicoes
+const uint32_t REQUEST_READS_PERIOD_MS = MODBUS_MAX_TIME_BETWEEN_BYTES_MS + 50; // tempo minimo de espera entre requisicoes
 
 volatile uint32_t testDisplayConnectionCounter_ms = 0;
 const uint32_t TEST_DISPLAY_CONNECTION_PERIOD_MS = 500;
@@ -161,6 +161,7 @@ static void APP_InitTimers(void);
 static void APP_EnableSupplies(uint8_t supplyFlags);
 void APP_DisableSupplies(uint8_t supplyFlags);
 static void APP_StartAdcReadDma(reading_t typeOfRead);
+static void APP_UpdateAddress(void);
 static void APP_InitModbus(void);
 static void APP_UpdateReads(void);
 static void APP_RequestReads(void);
@@ -267,25 +268,34 @@ static void APP_InitTimers(){
     HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 2000, RTC_WAKEUPCLOCK_RTCCLK_DIV16); // 1 seg
 }
 
-static void APP_InitModbus(void){
-    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR1_GPIO_Port, ADDR1_Pin));
-    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR2_GPIO_Port, ADDR2_Pin) << 1);
-    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR3_GPIO_Port, ADDR3_Pin) << 2);
-    DEVICE_ADDRESS |= (!HAL_GPIO_ReadPin(ADDR4_GPIO_Port, ADDR4_Pin) << 3);
-    if(DEVICE_ADDRESS == 0){
+static void APP_UpdateAddress(){
+    uint8_t address = 0;
+    address |= (!HAL_GPIO_ReadPin(ADDR1_GPIO_Port, ADDR1_Pin));
+    address |= (!HAL_GPIO_ReadPin(ADDR2_GPIO_Port, ADDR2_Pin) << 1);
+    address |= (!HAL_GPIO_ReadPin(ADDR3_GPIO_Port, ADDR3_Pin) << 2);
+    address |= (!HAL_GPIO_ReadPin(ADDR4_GPIO_Port, ADDR4_Pin) << 3);
+    if(address == (DEVICE_ADDRESS - (!modbusMaster)*SLAVE_INITIAL_ADDRESS)){
+        return;
+    }
+
+    DEVICE_ADDRESS = address;
+    if(address == 0){
         modbusMaster = 1;
     }
     else{
         DEVICE_ADDRESS += SLAVE_INITIAL_ADDRESS;
+        modbusMaster = 0;
     }
+    MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
+}
 
+static void APP_InitModbus(void){
+    APP_UpdateAddress();
     // Organizandoo array de acordo com a lista de registradores em registers.h
     for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
         inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
         inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
     }
-
-    MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
 }
 
 static void APP_EnableSupplies(uint8_t supplyFlags){
@@ -399,6 +409,9 @@ static void APP_RequestReads(void){
     if(modbusWaitingForResponse){
         return;
     }
+    if(requestReadsCounter_ms < REQUEST_READS_PERIOD_MS){
+        return;
+    }
     STRING_Clear(&modbusLastMessage);
 
     static uint8_t slaveNumber = 0;
@@ -410,7 +423,6 @@ static void APP_RequestReads(void){
 
     modbusWaitingForResponse = 1;
     requestReadsCounter_ms = 0;
-    modbusTimeBetweenByteCounter_ms = 0;
 }
 
 static void APP_UpdateDisplay(void){
@@ -423,7 +435,7 @@ static void APP_UpdateDisplay(void){
 
     for(uint8_t placa = 0; placa < MODBUS_NUMBER_OF_DEVICES; placa++){
         for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
-            uint16_t value = convertedVoltageReads_V[placa][channel];
+            float value = convertedVoltageReads_V[placa][channel];
             if(value < 0){
                 value = 0;
             }
@@ -690,6 +702,8 @@ static void APP_TreatModbusMessage(){
         STRING_Clear(&modbusLastMessage);
         modbusWaitingForResponse = 0;
         LEDS_SetLedState(2, GPIO_PIN_RESET);
+        APP_UpdateAddress();
+        APP_ResetUart(MODBUS_UART);
         return;
     }
     if(RB_IsEmpty(&modbusRb)){
@@ -781,13 +795,13 @@ static void APP_TreatSlaveResponse(string *response){
                 uint16_t channel = modbusHandler.firstRegister + i/2;
 
                 if(modbusHandler.firstRegister + i%2 == 0){
-                    convertedVoltageReads_V[modbusHandler.requestId - SLAVE_INITIAL_ADDRESS + 1][channel] =
+                    convertedVoltageReads_V[modbusHandler.requestId - SLAVE_INITIAL_ADDRESS][channel] =
                             UTILS_Map(incomingShort,
                                     MIN_ADC_READ, MAX_ADC_READ,
                                     MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
                 else{
-                    convertedCurrentReads_mA[modbusHandler.requestId - SLAVE_INITIAL_ADDRESS + 1][channel] =
+                    convertedCurrentReads_mA[modbusHandler.requestId - SLAVE_INITIAL_ADDRESS][channel] =
                             UTILS_Map(incomingShort,
                                     MIN_ADC_READ, MAX_ADC_READ,
                                     MIN_CURRENT_READ, MAX_CURRENT_READ);

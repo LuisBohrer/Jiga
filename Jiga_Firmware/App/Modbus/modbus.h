@@ -27,14 +27,14 @@
 
 // ENUMS //
 
-typedef enum enMODBUS_ModbusStates{
+typedef enum modbusStates_e{
     MODBUS_STARTING = 0,
     MODBUS_IDLE,
     MODBUS_SENDING,
     MODBUS_RECEIVING,
 } modbusStates_t;
 
-typedef enum enMODBUS_Opcodes{
+typedef enum modbusOpcodes_e{
     READ_COILS = 0x01,
     READ_DISCRETE_INPUTS,
     READ_HOLDING_REGISTERS,
@@ -56,7 +56,7 @@ typedef enum enMODBUS_Opcodes{
     ENCAPSULATED_INTERFACE_TRANSPORT = 0x2B
 } modbusOpcodes_t;
 
-typedef enum enMODBUS_Error{
+typedef enum modbusError_e{
     MODBUS_NO_ERROR = 0,
     MODBUS_ILLEGAL_FUNCTION,
     MODBUS_ILLEGAL_DATA_ADDRESS,
@@ -77,14 +77,14 @@ typedef enum enMODBUS_Error{
     MODBUS_INCOMPLETE_MESSAGE = 0xFF,
 } modbusError_t;
 
-typedef enum enMODBUS_RegisterBytes{
+typedef enum registerBytes_e{
     MODBUS_REGISTER_1_BIT = 0,
     MODBUS_REGISTER_8_BITS = 1,
     MODBUS_REGISTER_16_BITS = 2,
     MODBUS_REGISTER_32_BITS = 4,
 } registerBytes_t;
 
-typedef enum{
+typedef enum sendOrReceive_e{
     MODBUS_SET_RECEIVE = 0,
     MODBUS_SET_SEND,
 } sendOrReceive_t;
@@ -94,7 +94,7 @@ typedef enum{
 
 // STRUCTS //
 
-typedef struct {
+typedef struct modbusHandler_s{
     GPIO_TypeDef *sendReceivePort;
     uint16_t sendReceivePin;
     UART_HandleTypeDef *modbusUart;
