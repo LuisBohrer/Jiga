@@ -135,12 +135,12 @@ const uint32_t UPDATE_READS_PERIOD_MS = 5;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500; // tempo maximo ate reconhecer como fim da mensagem
-const uint16_t MASTER_BUFFER_PERIOD = 1500; // tempo a mais esperado pelo mestre para receber uma resposta
+const uint16_t MASTER_BUFFER_PERIOD_MS = 50; // tempo a mais esperado pelo mestre para receber uma resposta
 volatile uint32_t debugTimeBetweenByteCounter_ms = 0;
 const uint16_t DEBUG_MAX_TIME_BETWEEN_BYTES_MS = 500;
 
 volatile uint32_t requestReadsCounter_ms = 0;
-const uint32_t REQUEST_READS_PERIOD_MS = MODBUS_MAX_TIME_BETWEEN_BYTES_MS + 50; // tempo minimo de espera entre requisicoes
+const uint32_t REQUEST_READS_PERIOD_MS = 200; // tempo minimo de espera entre requisicoes
 
 volatile uint32_t testDisplayConnectionCounter_ms = 0;
 const uint32_t TEST_DISPLAY_CONNECTION_PERIOD_MS = 500;
@@ -403,7 +403,7 @@ static void APP_RequestReads(void){
     if(!modbusMaster){
         return;
     }
-    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS){
+    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD_MS){
         modbusWaitingForResponse = 0;
     }
     if(modbusWaitingForResponse){
@@ -423,6 +423,7 @@ static void APP_RequestReads(void){
 
     modbusWaitingForResponse = 1;
     requestReadsCounter_ms = 0;
+    modbusTimeBetweenByteCounter_ms = 0;
 }
 
 static void APP_UpdateDisplay(void){
@@ -698,12 +699,13 @@ static void APP_TreatModbusMessage(){
     if(!modbusEnabled){
         return;
     }
-    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS){
+    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD_MS){
         STRING_Clear(&modbusLastMessage);
         modbusWaitingForResponse = 0;
         LEDS_SetLedState(2, GPIO_PIN_RESET);
         APP_UpdateAddress();
         APP_ResetUart(MODBUS_UART);
+        modbusTimeBetweenByteCounter_ms = 0;
         return;
     }
     if(RB_IsEmpty(&modbusRb)){
@@ -1156,7 +1158,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim){
         if(updateReadsCounter_ms < UPDATE_READS_PERIOD_MS){
             updateReadsCounter_ms++;
         }
-        if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD){
+        if(modbusTimeBetweenByteCounter_ms < MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD_MS){
             modbusTimeBetweenByteCounter_ms++;
         }
         if(debugTimeBetweenByteCounter_ms < DEBUG_MAX_TIME_BETWEEN_BYTES_MS){
