@@ -403,9 +403,6 @@ static void APP_RequestReads(void){
     if(!modbusMaster){
         return;
     }
-    if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD_MS){
-        modbusWaitingForResponse = 0;
-    }
     if(modbusWaitingForResponse){
         return;
     }
@@ -423,7 +420,6 @@ static void APP_RequestReads(void){
 
     modbusWaitingForResponse = 1;
     requestReadsCounter_ms = 0;
-    modbusTimeBetweenByteCounter_ms = 0;
 }
 
 static void APP_UpdateDisplay(void){
