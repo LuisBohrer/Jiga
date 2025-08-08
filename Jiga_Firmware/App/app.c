@@ -135,12 +135,12 @@ const uint32_t UPDATE_READS_PERIOD_MS = 5;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500; // tempo maximo ate reconhecer como fim da mensagem
-const uint16_t MASTER_BUFFER_PERIOD_MS = 50; // tempo a mais esperado pelo mestre para receber uma resposta
+const uint16_t MASTER_BUFFER_PERIOD_MS = 100; // tempo a mais esperado pelo mestre para receber uma resposta
 volatile uint32_t debugTimeBetweenByteCounter_ms = 0;
 const uint16_t DEBUG_MAX_TIME_BETWEEN_BYTES_MS = 500;
 
 volatile uint32_t requestReadsCounter_ms = 0;
-const uint32_t REQUEST_READS_PERIOD_MS = 200; // tempo minimo de espera entre requisicoes
+const uint32_t REQUEST_READS_PERIOD_MS = 100; // tempo minimo de espera entre requisicoes
 
 volatile uint32_t testDisplayConnectionCounter_ms = 0;
 const uint32_t TEST_DISPLAY_CONNECTION_PERIOD_MS = 500;
@@ -229,6 +229,7 @@ void APP_poll(){
     APP_TreatModbusMessage();
 
     APP_UpdateDisplay();
+    APP_UpdateAddress();
     if(modbusMaster){
         APP_RequestReads();
     }
@@ -299,6 +300,9 @@ static void APP_InitModbus(void){
 }
 
 static void APP_EnableSupplies(uint8_t supplyFlags){
+    if(supplyFlags > SUPPLY_ALL){
+        return;
+    }
     if(supplyFlags & SUPPLY_5V){
         HAL_GPIO_WritePin(LIGA5V_GPIO_Port, LIGA5V_Pin, GPIO_PIN_SET);
     }
@@ -311,6 +315,9 @@ static void APP_EnableSupplies(uint8_t supplyFlags){
 }
 
 void APP_DisableSupplies(uint8_t supplyFlags){
+    if(supplyFlags > SUPPLY_ALL){
+        return;
+    }
     if(supplyFlags & SUPPLY_5V){
         HAL_GPIO_WritePin(LIGA5V_GPIO_Port, LIGA5V_Pin, GPIO_PIN_RESET);
     }
@@ -412,14 +419,14 @@ static void APP_RequestReads(void){
     STRING_Clear(&modbusLastMessage);
 
     static uint8_t slaveNumber = 0;
-    MODBUS_ReadInputRegisters(&modbusHandler, SLAVE_INITIAL_ADDRESS + slaveNumber, REGISTER_VOLTAGE_1, NUMBER_OF_CHANNELS*2);
-
-    if(slaveNumber++ > MODBUS_NUMBER_OF_DEVICES){
+    if(++slaveNumber >= MODBUS_NUMBER_OF_DEVICES - 1){
         slaveNumber = 0;
     }
+    MODBUS_ReadInputRegisters(&modbusHandler, SLAVE_INITIAL_ADDRESS + slaveNumber + 1, REGISTER_VOLTAGE_1, NUMBER_OF_CHANNELS*2);
 
     modbusWaitingForResponse = 1;
     requestReadsCounter_ms = 0;
+    modbusTimeBetweenByteCounter_ms = 0;
 }
 
 static void APP_UpdateDisplay(void){
@@ -699,7 +706,6 @@ static void APP_TreatModbusMessage(){
         STRING_Clear(&modbusLastMessage);
         modbusWaitingForResponse = 0;
         LEDS_SetLedState(2, GPIO_PIN_RESET);
-        APP_UpdateAddress();
         APP_ResetUart(MODBUS_UART);
         modbusTimeBetweenByteCounter_ms = 0;
         return;
@@ -715,18 +721,24 @@ static void APP_TreatModbusMessage(){
     RB_ClearBuffer(&modbusRb);
     if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
             != MODBUS_NO_ERROR){
+        modbusWaitingForResponse = 0;
+        modbusTimeBetweenByteCounter_ms = 0;
+        STRING_Clear(&modbusLastMessage);
+        LEDS_SetLedState(2, GPIO_PIN_RESET);
+        APP_ResetUart(MODBUS_UART);
         return;
     }
 
     if(modbusMaster){
         APP_TreatSlaveResponse(&modbusLastMessage);
-        modbusWaitingForResponse = 0;
     }
     else{
         if(STRING_GetLength(&modbusLastMessage) != 0){
             APP_TreatMasterRequest(&modbusLastMessage);
         }
     }
+    modbusWaitingForResponse = 0;
+    modbusTimeBetweenByteCounter_ms = 0;
     STRING_Clear(&modbusLastMessage);
     LEDS_SetLedState(2, GPIO_PIN_RESET);
 }
