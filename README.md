@@ -210,6 +210,7 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | --- | --- | --- |
 | `reading_t` | <ul><li>`READ_VOLTAGE` <li>`READ_CURRENT` | Tipos de leitura do ADC. |
 | `calibration_t` | <ul><li>`VOLTAGE_MIN` <li>`VOLTAGE_MAX` <li>`CURRENT_MIN` <li>`CURRENT_MAX` | Tipos de valores para a calibração do Adc. |
+| `bool` | <ul><li>`false = 0` <li>`true` | Booleano. |
 | `displayOpcodes_t` | <ul><li>`SET_AS_MASTER` | Opcodes do display. |
 | `uartBaudRate_t` | <ul><li>`BAUD_RATE_9600` <li>`BAUD_RATE_19200` <li>`BAUD_RATE_115200` | Baudrates usados. |
 | `uartStopBits_t` | <ul><li>`STOP_BITS_0_5` <li>`STOP_BITS_1` <li>`STOP_BITS_1_5` <li>`STOP_BITS_2` | Número de stop bits usados. |
@@ -224,23 +225,23 @@ Também define as callbacks das interrupções de ADC, timer e uarts.
 | **APP_InitModbus** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a inicialização do modbus. |
 | **APP_EnableSupplies** | <div align="center">`void`</div> | <div align="center"><ul><li>`uint8_t supplyFlags:` byte com as flags das fontes que devem ser ligadas. | Liga as fontes especificadas na placa. |
 | **APP_DisableSupplies** | <div align="center">`void`</div> | <div align="center"><ul><li>`uint8_t supplyFlags:` byte com as flags das fontes que devem ser desligadas. | Desliga as fontes especificadas na placa. |
-| **APP_StartAdcReadDma** | <div align="center">`void`</div> | <ul><li>`uint16_t* readsBuffer:` buffer onde as leituras são armazenadas <li>`reading_t rypeOfRead:` escolhe se a leitura é de tensão ou corrente | Inicia a leitura por DMA e seta a variável global que indica o tipo de leitura sendo feito. |
+| **APP_StartAdcReadDma** | <div align="center">`void`</div> | <ul><li>`uint16_t *readsBuffer:` buffer onde as leituras são armazenadas <li>`reading_t rypeOfRead:` escolhe se a leitura é de tensão ou corrente | Inicia a leitura por DMA e seta a variável global que indica o tipo de leitura sendo feito. |
 | **APP_UpdateReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Verifica se há novas leituras e, caso sim, as envia para o display. Também faz a requisição de uma nova leitura do outro tipo. |
 | **APP_RequestReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz a requisição de leituras de outras placas. |
 | **APP_UpdateDisplay** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio das leituras da placa para o display. |
 | **APP_TreatDisplayMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pelo display. |
 | **APP_TreatDebugMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pela porta de debug. |
 | **APP_TreatModbusMessage** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o tratamento das mensagens enviads pelo modbus. |
-| **APP_TreatMasterRequest** | <div align="center">`void`</div> | <ul><li>`string* request:` mensagem recebida pelo modbus | Faz o tratamento das mensagens enviads pelo modbus como escravo. |
-| **APP_TreatSlaveResponse** | <div align="center">`void`</div> | <ul><li>`string* response:` mensagem recebida pelo modbus | Faz o tratamento das mensagens enviads pelo modbus como mestre. |
+| **APP_TreatMasterRequest** | <div align="center">`void`</div> | <ul><li>`string_t *request:` mensagem recebida pelo modbus | Faz o tratamento das mensagens enviads pelo modbus como escravo. |
+| **APP_TreatSlaveResponse** | <div align="center">`void`</div> | <ul><li>`string_t *response:` mensagem recebida pelo modbus | Faz o tratamento das mensagens enviads pelo modbus como mestre. |
 | **APP_EnableUartInterrupt** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser ligada | Ativa o recebimento da uart por interrupção. |
 | **APP_DisableUartInterrupt** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser desligada | Desliga o recebimento da uart por interrupção. |
-| **APP_UpdateUartConfigs** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser alterada <li>`uint8_t* uartBuffer:` buffer da uart <li>`uartBaudRate_t:` baudrate <li>`uartStopBits_t:` quantidade de stop bits <li>`parity:` paridade | Reinicia a uart com novas configurações. |
+| **APP_UpdateUartConfigs** | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef* huart:` huart que deve ser alterada <li>`uint8_t *uartBuffer:` buffer da uart <li>`uartBaudRate_t:` baudrate <li>`uartStopBits_t:` quantidade de stop bits <li>`parity:` paridade | Reinicia a uart com novas configurações. |
 | **APP_SendLog** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio de uma mensagem com timestamp e as  leituras da placa na porta de debug. |
 | **APP_SendPeriodicReads** | <div align="center">`void`</div> | <div align="center">`void`</div> | Faz o envio de uma mensagem com timestamp e as  leituras da placa na porta de debug. |
 | **APP_SetRtcTime** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t seconds:` segundos para setar <li>`uint8_t minutes:` minutos para setar <li>`uint8_t hours:` horas para setar | Seta um novo horário no RTC |
 | **APP_SetRtcDate** | <div align="center">`void`</div> | <ul><li>`RTC_HandleTypeDef* hrtc:` estrutura do RTC <li>`uint8_t day:` dia para setar <li>`uint8_t month:` mês para setar <li>`uint8_t year:` ano para setar | Seta uma nova data no RTC |
-| **APP_AddRtcTimestampToString** | <div align="center">`void`</div> | <ul><li>`string* String:` string de base <li>`RTC_HandleTypeDef* baseTime:` estrutura do RTC para adicionar | Adiciona o timestamp do RTC na string. |
+| **APP_AddRtcTimestampToString** | <div align="center">`void`</div> | <ul><li>`string_t *String:` string de base <li>`RTC_HandleTypeDef* baseTime:` estrutura do RTC para adicionar | Adiciona o timestamp do RTC na string. |
 |**APP_CalibrateAdcChannel** | <div align="center">`void`</div> | <ul><li>`uint8_t channel:` canal do Adc; 0 a 9 para canais individuais, 10 para calibrar todos os canais <li>`calibration_t typeOfCalibration:` calibrar tensão ou corrente, mínimo ou máximo | Calibra o valor mínimo ou máximo de um canal do Adc de acordo com as leituras atuais. |
 |**APP_ResetAdcCalibration** | <div align="center">`void`</div> | <ul><li>`uint8_t channel:` canal do Adc; 0 a 9 para canais individuais, 10 para calibrar todos os canais <li>`calibration_t typeOfCalibration:` calibrar tensão ou corrente, mínimo ou máximo | Reseta o valor mínimo ou máximo de um canal do Adc. |
 
@@ -283,9 +284,9 @@ Cuida da comunicação de debug (coletora) da placa. Ainda precisa definir uma l
 | `COMM_SendValues8Bits` | <div align="center">`void`</div> | <ul><li>`uint8_t *values:` buffer com os valores <li>`uint16_t length:` quantidade de valores | Envia valores de 8 bits pela uart de debug. |
 | `COMM_SendValues16Bits` | <div align="center">`void`</div> | <ul><li>`uint16_t *values:` buffer com os valores <li>`uint16_t length:` quantidade de valores | Envia valores de 16 bits pela uart de debug. |
 | `COMM_SendValues32Bits` | <div align="center">`void`</div> | <ul><li>`uint32_t *values:` buffer com os valores <li>`uint16_t length:` quantidade de valores | Envia valores de 32 bits pela uart de debug. |
-| `COMM_SendString` | <div align="center">`void`</div> | <ul><li>`string *message:` endereço da string | Envia uma string pela uart de debug. |
+| `COMM_SendString` | <div align="center">`void`</div> | <ul><li>`string_t *message:` endereço da string | Envia uma string pela uart de debug. |
 | `COMM_SendChar` | <div align="center">`void`</div> | <ul><li>`uint8_t *buffer:` buffer com caracteres <li>`uint16_t length:` quantidade de caracteres | Envia caracteres pela usart de debug. |
-| `COMM_TreatResponse` | `debugRequest_t:` qual requisição feita | <ul><li>`string *message:` mensagem de debug | Faz a interpretação de uma mensagem chegada pela uart de debug. |
+| `COMM_TreatResponse` | `debugRequest_t:` qual requisição feita | <ul><li>`string_t *message:` mensagem de debug | Faz a interpretação de uma mensagem chegada pela uart de debug. |
 
 </details>
 
@@ -334,8 +335,8 @@ Referência: [embarcados.com.br/protocolo-modbus/](https://embarcados.com.br/pro
 | `MODBUS_WriteMultipleCoils` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstCoilAddress:` endereço da primeira bobina desejada <li>`uint16_t numberOfCoils:` número de bobinas para escrever <li>`uint8_t *valuesToWrite:` endereço do buffer com os valores para ser escritos | Faz uma requisição de escrita de multiplas bobinas. |
 | `MODBUS_WriteSingleHoldingRegister` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint32_t valueToWrite:` valor para escrever no registrador <li>`registerBytes_t sizeOfRegisterBytes:` tamanho do registrador | Faz uma requisição de escrita de um registrador. |
 | `MODBUS_WriteMultipleHoldingRegisters` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t secondaryAddress:` endereço do dispositivo de destino <li>`uint16_t firstRegisterAddress:` endereço do primeiro registrador desejado <li>`uint16_t numberOfRegisters:` número de registradores para ler <li>`registerBytes_t sizeOfRegisterBytes:` tamanho em bytes dos registradores <li>`uint8_t *valuesToWrite:` buffer com os valores que serão escritos nos registradores | Faz uma requisição de escrita de multiplos registradores. |
-| `MODBUS_SendResponse` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t* responseBuffer:` buffer da resposta a enviar <li>`uint16_t responseBufferLength:` tamanho do buffer de resposta | Faz o envio de um buffer pelo modbus |
-| `MODBUS_UpdateHandler` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t* messageBuffer:` buffer da última mensagem do modbus | Atualiza o handler de acordo com as informações na mensagem. |
+| `MODBUS_SendResponse` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t *responseBuffer:` buffer da resposta a enviar <li>`uint16_t responseBufferLength:` tamanho do buffer de resposta | Faz o envio de um buffer pelo modbus |
+| `MODBUS_UpdateHandler` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`uint8_t *messageBuffer:` buffer da última mensagem do modbus | Atualiza o handler de acordo com as informações na mensagem. |
 | `MODBUS_SendError` | <div align="center">`void`</div> | <ul><li>`modbusHandler_t *modbusHandler:` endereço do handler do modbus <li>`modbusError_t error:` tipo do erro ocorrido | Envia uma mensagem de erro pelo modbus. |
 
 </details>
@@ -368,12 +369,12 @@ As funções dessa seção visam facilitar a montagem das mensagens de envio ao 
 | --- | --- | --- | --- |
 | `NEXTION_Begin` | <div align="center">`void`</div> | <ul><li>`UART_HandleTypeDef *displayUartAddress:` endereço da uart do display | Define o endereço da uart do display para as outras funções. |
 | `NEXTION_SendCharMessage` | <div align="center">`void`</div> | <ul><li>`const char* const message:` vetor de char a ser enviado para o display | Adiciona os bytes finais à mensagem e a envia. |
-| `NEXTION_SendStringMessage` | <div align="center">`void`</div> | <ul><li>`string *message:` string a ser enviada para o display | Adiciona os bytes finais à mensagem e a envia. |
+| `NEXTION_SendStringMessage` | <div align="center">`void`</div> | <ul><li>`string_t *message:` string a ser enviada para o display | Adiciona os bytes finais à mensagem e a envia. |
 | `NEXTION_SetComponentText` | <div align="center">`void`</div> | <ul><li>`const string *component:` nome do componente que será alterado <li>`const string *newText:` texto que será escrito no componente | Faz a mensagem para alterar o texto de um componente e a envia. |
 | `NEXTION_SetComponentIntValue` | <div align="center">`void`</div> | <ul><li>`const string *component:` nome do componente que será alterado <li>`int32_t newValue:` valor que será escrito no componente | Faz a mensagem para alterar um valor inteiro de um componente e a envia. |
 | `NEXTION_SetComponentFloatValue` | <div align="center">`void`</div> | <ul><li>`const string *component:` nome do componente que será alterado <li>`float newValue:` valor que será escrito no componente <li>`uint32_t decimalSpaces:` número de casas decimais desejadas | Faz a mensagem para alterar um valor float de um componente e a envia. |
 | `NEXTION_SetGlobalVariableValue` | <div align="center">`void`</div> | <ul><li>`const string *variable:` nome da variável que será alterada <li>`int32_t value:` valor que será escrito na variável | Faz a mensagem para alterar o valor de uma variável global e a envia. |
-| `NEXTION_TreatMessage` | `displayResponses_t:` classificação da última mensagem do display | <ul><li>`ringBuffer_t *buffer:` buffer contendo bytes vindo do display <li>`string *message:` mensagem analisada | Faz a interpretação das mensagens do display e as classifica. |
+| `NEXTION_TreatMessage` | `displayResponses_t:` classificação da última mensagem do display | <ul><li>`ringBuffer_t *buffer:` buffer contendo bytes vindo do display <li>`string_t *message:` mensagem analisada | Faz a interpretação das mensagens do display e as classifica. |
 
 </details>
 
@@ -393,7 +394,7 @@ Faz o tratamento dos buffers circulares, que funcionam como filas.
 
 | Struct | Componentes | Descrição |
 | --- | --- | --- |
-| ringBuffer_t | <ul><li>`uint8_t buffer[RING_BUFFER_DEFAULT_SIZE]:` buffer onde são guardados os bytes, o tamanho default é 1000 <li>`uint16_t first:` indice do primeiro da fila <li>`last:` indice do último da fila <li>`numberOfBytes:` quantidade de bytes na fila | Buffer circular. |
+| `ringBuffer_t` | <ul><li>`uint8_t buffer[RING_BUFFER_DEFAULT_SIZE]:` buffer onde são guardados os bytes, o tamanho default é 1000 <li>`uint16_t first:` indice do primeiro da fila <li>`last:` indice do último da fila <li>`numberOfBytes:` quantidade de bytes na fila | Buffer circular. |
 
 ### Funções
 
@@ -424,25 +425,25 @@ Trata o tipo "string" para facilitar a construção e envio de mensagens por uar
 
 | Struct | Componentes | Descrição |
 | --- | --- | --- |
-| `string` | <ul><li>`uint8_t buffer[BUFFER_SIZE]:` buffer onde a string é armazenada; o tamanho default é 100 <li>`uint16_t length:` tamanho da string armazenada | Armazenamento de uma mensagem e seu tamanho. |
+| `string_t` | <ul><li>`uint8_t buffer[BUFFER_SIZE]:` buffer onde a string é armazenada; o tamanho default é 100 <li>`uint16_t length:` tamanho da string armazenada | Armazenamento de uma mensagem e seu tamanho. |
 
 ### Funções
 
 | Função | Retorno | Parâmetros | Descrição |
 | --- | --- | --- | --- |
-| `STRING_Init` | <div align="center">`void`</div> | <ul><li>`string *self:` endereço da string | Inicializa os componentes da string. |
-| `STRING_GetBuffer` | `uint8_t*:` endereço do buffer da string | <ul><li>`string *self:` endereço da string | Retorna o buffer da string passada. |
-| `STRING_GetLength` | `uint16_t:` tamnanho da mensagem armazenada na string | <ul><li>`string *self:` endereço da string | Retorna o tamanho da mensagem armazenada na string. |
-| `STRING_AddChar` | <div align="center">`void`</div> | <ul><li>`string *self:` endereço da string <li>`char character:` caractere para adicionar na string | Adiciona um char ao final da string. |
-| `STRING_AddInt` | <div align="center">`void`</div> | <ul><li>`string *self:` endereço da string <li>`uint32_t number:` valor inteiro para adicionar na string | Adiciona um int ao final da string. |
-| `STRING_AddFloat` | <div align="center">`void`</div> | <ul><li>`string *self:` endereço da string <li>`float number:` valor decimal para adicionar na string <li>`uint32_t decimalSpaces:` quantidade de casas decimais desejadas <li>`char separator:` separador das casas decimais | Adiciona um float ao final da string. |
-| `STRING_AddCharString` | <div align="center">`void`</div> | <ul><li>`string *self:` endereço da string <li>`const char* const inputCharString:` buffer de char terminado em '\0' | Adiciona um buffer de char terminado em '\0' ao final da string. |
-| `STRING_AddString` | <div align="center">`void`</div> | <ul><li>`string *self:` endereço da string <li>`const string *inputString:` string para adicionar | Adiciona uma outra string ao final da string. |
-| `STRING_CopyString` | <div align="center">`void`</div> | <ul><li>`const string *copyFrom:` string de origem, não é alterada <li>`string *copyTo:` string de destino | Copia a mensagem de uma string em outra. |
-| `STRING_Clear` | <div align="center">`void`</div> | <ul><li>`string *self:` endereço da string | Reinicializa os componentes da string. |
+| `STRING_Init` | <div align="center">`void`</div> | <ul><li>`string_t *self:` endereço da string | Inicializa os componentes da string. |
+| `STRING_GetBuffer` | `uint8_t*:` endereço do buffer da string | <ul><li>`string_t *self:` endereço da string | Retorna o buffer da string passada. |
+| `STRING_GetLength` | `uint16_t:` tamnanho da mensagem armazenada na string | <ul><li>`string_t *self:` endereço da string | Retorna o tamanho da mensagem armazenada na string. |
+| `STRING_AddChar` | <div align="center">`void`</div> | <ul><li>`string_t *self:` endereço da string <li>`char character:` caractere para adicionar na string | Adiciona um char ao final da string. |
+| `STRING_AddInt` | <div align="center">`void`</div> | <ul><li>`string_t *self:` endereço da string <li>`uint32_t number:` valor inteiro para adicionar na string | Adiciona um int ao final da string. |
+| `STRING_AddFloat` | <div align="center">`void`</div> | <ul><li>`string_t *self:` endereço da string <li>`float number:` valor decimal para adicionar na string <li>`uint32_t decimalSpaces:` quantidade de casas decimais desejadas <li>`char separator:` separador das casas decimais | Adiciona um float ao final da string. |
+| `STRING_AddCharString` | <div align="center">`void`</div> | <ul><li>`string_t *self:` endereço da string <li>`const char* const inputCharString:` buffer de char terminado em '\0' | Adiciona um buffer de char terminado em '\0' ao final da string. |
+| `STRING_AddString` | <div align="center">`void`</div> | <ul><li>`string_t *self:` endereço da string <li>`const string *inputString:` string para adicionar | Adiciona uma outra string ao final da string. |
+| `STRING_CopyString` | <div align="center">`void`</div> | <ul><li>`const string *copyFrom:` string de origem, não é alterada <li>`string_t *copyTo:` string de destino | Copia a mensagem de uma string em outra. |
+| `STRING_Clear` | <div align="center">`void`</div> | <ul><li>`string_t *self:` endereço da string | Reinicializa os componentes da string. |
 | `STRING_IsDigit` | `uint8_t:` 0 caso não for um número, 1 caso for | <ul><li>`char inputchar:` char para verificação | Verifica se o char passado é um número ou não. |
 | `STRING_IsPrintable` | `uint8_t:` 0 caso não for imprimível, 1 caso for | <ul><li>`char inputchar:` char para verificação | Verifica se o char passado é imprimível ou não. |
-| `STRING_CharStringToString` | <div align="center">`void`</div> | <ul><li>`const char* const inputCharString:` buffer de char de origem  <li>`string *outputString:` string de destino | Converte um buffer de char em uma string. |
+| `STRING_CharStringToString` | <div align="center">`void`</div> | <ul><li>`const char* const inputCharString:` buffer de char de origem  <li>`string_t *outputString:` string de destino | Converte um buffer de char em uma string. |
 | `STRING_StringToCharString` | <div align="center">`void`</div> | <ul><li>`const string *inputString:` string de origem <li>`char *outputCharString:` buffer de char de destino | Converte uma string em um buffer de char. |
 | `STRING_StringToInt` | `int32_t:` valor armazenado na string | <ul><li>`const string *inputString:` string com o int armazenado | Retorna um valor inteiro armazenado dentro da string. |
 | `STRING_StringToFloat` | `float:` valor armazenado na string | <ul><li>`const string *inputString:` string com o float armazenado <li>`char separator:` separador das casas decimais | Retorna um valor float armazenado dentro da string. |
@@ -476,10 +477,10 @@ Funções utilitárias.
 | --- | --- | --- | --- |
 | `UTILS_CpuSleep` | <div align="center">`void`</div> | <div align="center">`void`</div> | Coloca o microcontrolador no modo sleep. |
 | `UTILS_Map` | `float:` valor convertido | <ul><li>`float value:` valor para converter <li>`float fromMin:` limite inferior do valor original <li>`float fromMax:` limite superior do valor original <li>`float toMin:` limite inferior da conversão desejada <li>`float toMax:` limite superior da conversão desejada | Faz a conversão de um valor para outra base. |
-| `UTILS_MovingAverageInit` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel <li>`uint8_t size:` tamanho do buffer | Inicializa a estrutura de média móvel. |
-| `UTILS_MovingAverageAddValue` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel <li>`uint16_t value:` valor para adicionar ao buffer | Adiciona um valor no buffer da estrutura. |
-| `UTILS_MovingAverageGetValue` | `uint16_t:` valor da média | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel | Calcula e retorna a média dos valores armazenados na estrutura. |
-| `UTILS_MovingAverageClear` | `void` | <ul><li>`movingAverage_t* self:` endereço da estrutura de média móvel | Limpa os valores da estrutura. |
+| `UTILS_MovingAverageInit` | `void` | <ul><li>`movingAverage_t *self:` endereço da estrutura de média móvel <li>`uint8_t size:` tamanho do buffer | Inicializa a estrutura de média móvel. |
+| `UTILS_MovingAverageAddValue` | `void` | <ul><li>`movingAverage_t *self:` endereço da estrutura de média móvel <li>`uint16_t value:` valor para adicionar ao buffer | Adiciona um valor no buffer da estrutura. |
+| `UTILS_MovingAverageGetValue` | `uint16_t:` valor da média | <ul><li>`movingAverage_t *self:` endereço da estrutura de média móvel | Calcula e retorna a média dos valores armazenados na estrutura. |
+| `UTILS_MovingAverageClear` | `void` | <ul><li>`movingAverage_t *self:` endereço da estrutura de média móvel | Limpa os valores da estrutura. |
 | `UTILS_GetIntegerSpacesFromFloat` | `uint32_t:` quantidade de números inteiros calculada | <ul><li>`float float:` value | Calcula e retorna a quantidade de valores inteiros em um float. |
 
 </details>
