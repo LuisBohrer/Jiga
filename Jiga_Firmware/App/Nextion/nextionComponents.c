@@ -8,7 +8,7 @@
 #include "Nextion/nextionComponents.h"
 #include "String/string.h"
 
-const string voltageTxtBx1[10] = {
+const string_t voltageTxtBx1[10] = {
         {"bx1_Tensao0", 12},
         {"bx1_Tensao1", 12},
         {"bx1_Tensao2", 12},
@@ -20,7 +20,7 @@ const string voltageTxtBx1[10] = {
         {"bx1_Tensao8", 12},
         {"bx1_Tensao9", 12}
 };
-const string voltageTxtBx2[10] = {
+const string_t voltageTxtBx2[10] = {
         {"bx2_Tensao0", 12},
         {"bx2_Tensao1", 12},
         {"bx2_Tensao2", 12},
@@ -33,7 +33,7 @@ const string voltageTxtBx2[10] = {
         {"bx2_Tensao9", 12}
 };
 
-const string currentTxtBx1[10] = {
+const string_t currentTxtBx1[10] = {
         {"bx1_Corrente0", 14},
         {"bx1_Corrente1", 14},
         {"bx1_Corrente2", 14},
@@ -45,7 +45,7 @@ const string currentTxtBx1[10] = {
         {"bx1_Corrente8", 14},
         {"bx1_Corrente9", 14}
 };
-const string currentTxtBx2[10] = {
+const string_t currentTxtBx2[10] = {
         {"bx2_Corrente0", 14},
         {"bx2_Corrente1", 14},
         {"bx2_Corrente2", 14},

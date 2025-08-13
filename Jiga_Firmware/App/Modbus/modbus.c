@@ -84,7 +84,7 @@ static inline void MODBUS_CalculateCrc(modbusHandler_t *modbusHandler){
     modbusHandler->calculatedCRC = ((modbusHandler->calculatedCRC << 8) & 0xFF00) | ((modbusHandler->calculatedCRC >> 8) & 0xFF);
 }
 
-void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendOrReceive){
+void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, modbusSendOrReceive_t sendOrReceive){
     HAL_GPIO_WritePin(modbusHandler->sendReceivePort, modbusHandler->sendReceivePin, sendOrReceive);
     if(sendOrReceive == MODBUS_SET_RECEIVE){
         modbusHandler->modbusState = MODBUS_RECEIVING;
@@ -94,7 +94,7 @@ void MODBUS_SetSendReceive(modbusHandler_t *modbusHandler, sendOrReceive_t sendO
     }
 }
 
-sendOrReceive_t MODBUS_GetSendReceive(modbusHandler_t *modbusHandler){
+modbusSendOrReceive_t MODBUS_GetSendReceive(modbusHandler_t *modbusHandler){
     if(modbusHandler->modbusState == MODBUS_SENDING){
         return MODBUS_SENDING;
     }
@@ -256,7 +256,7 @@ void MODBUS_WriteMultipleCoils(modbusHandler_t *modbusHandler, uint8_t secondary
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
 }
 
-void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress, uint32_t valueToWrite, registerBytes_t sizeOfRegisterBytes){
+void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t registerAddress, uint32_t valueToWrite, modbusRegisterBytes_t sizeOfRegisterBytes){
     MODBUS_ResetIndexes(modbusHandler);
 
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_SEND);
@@ -277,7 +277,7 @@ void MODBUS_WriteSingleHoldingRegister(modbusHandler_t *modbusHandler, uint8_t s
     MODBUS_SetSendReceive(modbusHandler, MODBUS_SET_RECEIVE);
 }
 
-void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, registerBytes_t sizeOfRegisterBytes, uint8_t* valuesToWrite){
+void MODBUS_WriteMultipleHoldingRegisters(modbusHandler_t *modbusHandler, uint8_t secondaryAddress, uint16_t firstRegisterAddress, uint16_t numberOfRegisters, modbusRegisterBytes_t sizeOfRegisterBytes, uint8_t* valuesToWrite){
     uint32_t numberOfBytesToWrite = numberOfRegisters*((uint8_t)sizeOfRegisterBytes);
     modbusHandler->qttBytes = numberOfBytesToWrite;
     MODBUS_ResetIndexes(modbusHandler);

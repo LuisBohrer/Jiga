@@ -13,20 +13,20 @@ UART_HandleTypeDef *debugUart;
 const uint32_t DEFAULT_UART_TIMEOUT = 200;
 
 const uint16_t SIZE_OF_DEBUG_START_PACKET = 2;
-const string debugStartPacket = {{0x23, 0x23}, SIZE_OF_DEBUG_START_PACKET};
+const string_t debugStartPacket = {{0x23, 0x23}, SIZE_OF_DEBUG_START_PACKET};
 const uint16_t SIZE_OF_DEBUG_END_PACKET = 1;
-const string debugEndPacket = {{0x40}, SIZE_OF_DEBUG_END_PACKET};
+const string_t debugEndPacket = {{0x40}, SIZE_OF_DEBUG_END_PACKET};
 
 void COMM_Begin(UART_HandleTypeDef *huart){
     debugUart = huart;
 }
 
 void COMM_SendStartPacket(){
-    HAL_UART_Transmit(debugUart, STRING_GetBuffer((string*)&debugStartPacket), STRING_GetLength((string*)&debugStartPacket), DEFAULT_UART_TIMEOUT);
+    HAL_UART_Transmit(debugUart, STRING_GetBuffer((string_t*)&debugStartPacket), STRING_GetLength((string_t*)&debugStartPacket), DEFAULT_UART_TIMEOUT);
 }
 
 void COMM_SendEndPacket(){
-    HAL_UART_Transmit(debugUart, STRING_GetBuffer((string*)&debugEndPacket), STRING_GetLength((string*)&debugEndPacket), DEFAULT_UART_TIMEOUT);
+    HAL_UART_Transmit(debugUart, STRING_GetBuffer((string_t*)&debugEndPacket), STRING_GetLength((string_t*)&debugEndPacket), DEFAULT_UART_TIMEOUT);
 }
 
 void COMM_SendAck(debugRequest_t ack){
@@ -46,7 +46,7 @@ void COMM_SendValues32Bits(uint32_t *values, uint16_t length){
     COMM_SendValues8Bits((uint8_t*) values, 4*length);
 }
 
-void COMM_SendString(string *message){
+void COMM_SendString(string_t *message){
     HAL_UART_Transmit(debugUart, STRING_GetBuffer(message), STRING_GetLength(message), DEFAULT_UART_TIMEOUT);
 }
 
@@ -54,7 +54,7 @@ void COMM_SendChar(uint8_t *buffer, uint16_t length){
     HAL_UART_Transmit(debugUart, buffer, length, DEFAULT_UART_TIMEOUT);
 }
 
-debugRequest_t COMM_TreatResponse(string *message){
+debugRequest_t COMM_TreatResponse(string_t *message){
     if(STRING_GetLength(message) <= 3){
         return INCOMPLETE_REQUEST;
     }

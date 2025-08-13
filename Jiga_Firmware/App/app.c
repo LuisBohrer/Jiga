@@ -52,8 +52,12 @@ typedef enum{
     CURRENT_MIN,
     CURRENT_MAX
 } calibration_t;
+typedef enum{
+    false = 0,
+    true
+} bool;
 volatile reading_t reading = READ_VOLTAGE;
-volatile uint8_t newReads = 0;
+volatile bool newReads = false;
 
 #define MODBUS_NUMBER_OF_DEVICES 2 // conta com o mestre
 const uint16_t SLAVE_INITIAL_ADDRESS = 0X6C;
@@ -74,7 +78,7 @@ movingAverage_t voltageMovingAverage[NUMBER_OF_CHANNELS];
 
 // Display constants // [Section]
 const uint16_t NUMBER_OF_DIGITS_IN_BOX = 4;
-const string nextionStartBytes = {{'#', '#'}, 2};
+const string_t nextionStartBytes = {{'#', '#'}, 2};
 typedef enum displayOpcodes_e{
     DISPLAY_TEST_COMMUNICATION = 0,
 } displayOpcodes_t;
@@ -103,17 +107,17 @@ typedef enum {
 UART_HandleTypeDef *DISPLAY_UART = &hlpuart1;
 uint8_t displayLastChar;
 ringBuffer_t displayRb;
-string displayLastMessage;
+string_t displayLastMessage;
 
 UART_HandleTypeDef *DEBUG_UART = &huart1;
 uint8_t debugLastChar;
 ringBuffer_t debugRb;
-string debugLastMessage;
+string_t debugLastMessage;
 
 UART_HandleTypeDef *MODBUS_UART = &huart3;
 uint8_t modbusLastChar;
 ringBuffer_t modbusRb;
-string modbusLastMessage;
+string_t modbusLastMessage;
 // Uart declarations and buffers //
 
 // Modbus declarations // [Section]
@@ -170,8 +174,8 @@ static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
 static void APP_TreatDebugMessage(void);
 static void APP_TreatModbusMessage(void);
-static void APP_TreatMasterRequest(string *request);
-static void APP_TreatSlaveResponse(string *request);
+static void APP_TreatMasterRequest(string_t *request);
+static void APP_TreatSlaveResponse(string_t *request);
 static void APP_EnableModbus(void);
 void APP_DisableModbus(void);
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
@@ -181,7 +185,7 @@ static void APP_ResetUart(UART_HandleTypeDef *huart);
 static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer, uartBaudRate_t baudRate, uartStopBits_t stopBits, uartParity_t parity);
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
 static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, uint8_t year);
-static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime);
+static void APP_AddRtcTimestampToString(string_t *String, RTC_HandleTypeDef *baseTime);
 static void APP_CalibrateAdcChannel(uint8_t channel, calibration_t typeOfCalibration);
 static void APP_ResetAdcCalibration(uint8_t channel, calibration_t typeOfCalibration);
 // Static function declarations //
@@ -357,7 +361,7 @@ static void APP_UpdateReads(){
         return;
     }
 
-    newReads = 0;
+    newReads = false;
     switch(reading){
         case READ_VOLTAGE:
             for(uint16_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
@@ -743,7 +747,7 @@ static void APP_TreatModbusMessage(){
     LEDS_SetLedState(2, GPIO_PIN_RESET);
 }
 
-static void APP_TreatMasterRequest(string *request){
+static void APP_TreatMasterRequest(string_t *request){
     if(!appStarted){
         return;
     }
@@ -757,36 +761,37 @@ static void APP_TreatMasterRequest(string *request){
         MODBUS_SendError(&modbusHandler, MODBUS_TIMEOUT);
         return;
     }
+    if(messageError != MODBUS_NO_ERROR){
+        MODBUS_SendError(&modbusHandler, MODBUS_NEGATIVE_ACKNOWLEDGE); // comentar se começar a responder sem receber a mensagem completa
+        return;
+    }
 
-    if(messageError == MODBUS_NO_ERROR){
-        MODBUS_UpdateHandler(&modbusHandler, STRING_GetBuffer(request));
-        if(modbusHandler.requestId != DEVICE_ADDRESS){
-            return;
-        }
+    MODBUS_UpdateHandler(&modbusHandler, STRING_GetBuffer(request));
+    if(modbusHandler.requestId != DEVICE_ADDRESS){
+        return;
+    }
 
-        uint8_t responseBuffer[100] = {0};
-        uint16_t responseBufferIndex = 0;
-        switch(modbusHandler.opcode){
-            case READ_INPUT_REGISTERS:
-                if(modbusHandler.firstRegister + modbusHandler.qttRegisters > NUMBER_OF_INPUT_REGISTERS){
-                    MODBUS_SendError(&modbusHandler, MODBUS_ILLEGAL_DATA_ADDRESS);
-                    break;
-                }
-
-                for(uint8_t i = 0; i < modbusHandler.qttRegisters; i++){
-                    responseBuffer[responseBufferIndex++] = (*inputRegistersMap[modbusHandler.firstRegister + i]) >> 8;
-                    responseBuffer[responseBufferIndex++] = (*inputRegistersMap[modbusHandler.firstRegister + i]) & 0xFF;
-                }
-                MODBUS_SendResponse(&modbusHandler, responseBuffer, responseBufferIndex);
+    uint8_t responseBuffer[100] = {0};
+    uint16_t responseBufferIndex = 0;
+    switch(modbusHandler.opcode){
+        case READ_INPUT_REGISTERS:
+            if(modbusHandler.firstRegister + modbusHandler.qttRegisters > NUMBER_OF_INPUT_REGISTERS){
+                MODBUS_SendError(&modbusHandler, MODBUS_ILLEGAL_DATA_ADDRESS);
                 break;
-            default:
-                MODBUS_SendError(&modbusHandler, MODBUS_ILLEGAL_FUNCTION);
-                break;
-        }
+            }
+            for(uint8_t i = 0; i < modbusHandler.qttRegisters; i++){
+                responseBuffer[responseBufferIndex++] = (*inputRegistersMap[modbusHandler.firstRegister + i]) >> 8;
+                responseBuffer[responseBufferIndex++] = (*inputRegistersMap[modbusHandler.firstRegister + i]) & 0xFF;
+            }
+            MODBUS_SendResponse(&modbusHandler, responseBuffer, responseBufferIndex);
+            break;
+        default:
+            MODBUS_SendError(&modbusHandler, MODBUS_ILLEGAL_FUNCTION);
+            break;
     }
 }
 
-static void APP_TreatSlaveResponse(string *response){
+static void APP_TreatSlaveResponse(string_t *response){
     if(!appStarted){
         return;
     }
@@ -909,7 +914,7 @@ static void APP_SendLog(){
         return;
     }
 
-    string logMessage;
+    string_t logMessage;
     STRING_Init(&logMessage);
     APP_AddRtcTimestampToString(&logMessage, &hrtc);
     STRING_AddCharString(&logMessage, "\n\r");
@@ -978,7 +983,7 @@ static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, 
     } while(status != HAL_OK);
 }
 
-static void APP_AddRtcTimestampToString(string *String, RTC_HandleTypeDef *baseTime){
+static void APP_AddRtcTimestampToString(string_t *String, RTC_HandleTypeDef *baseTime){
     if(!appStarted){
         return;
     }
@@ -1117,7 +1122,7 @@ static void APP_ResetAdcCalibration(uint8_t channel, calibration_t typeOfCalibra
 
 // Callbacks // [Section]
 void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
-    newReads = 1;
+    newReads = true;
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){

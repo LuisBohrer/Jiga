@@ -36,9 +36,9 @@ void COMM_SendAck(debugRequest_t ack);
 void COMM_SendValues8Bits(uint8_t *values, uint16_t length);
 void COMM_SendValues16Bits(uint16_t *values, uint16_t length);
 void COMM_SendValues32Bits(uint32_t *values, uint16_t length);
-void COMM_SendString(string *message);
+void COMM_SendString(string_t *message);
 void COMM_SendChar(uint8_t *buffer, uint16_t length);
-debugRequest_t COMM_TreatResponse(string *message);
+debugRequest_t COMM_TreatResponse(string_t *message);
 
 
 #endif /* COMM_COMM_H_ */

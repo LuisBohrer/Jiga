@@ -8,26 +8,26 @@
 #include "String/string.h"
 #include <math.h>
 
-void STRING_Init(string *self){
+void STRING_Init(string_t *self){
     self->length = 0;
     for(uint16_t i = 0; i < BUFFER_SIZE; i++){
         self->buffer[i] = '\0';
     }
 }
 
-uint8_t* STRING_GetBuffer(string *self){
+uint8_t* STRING_GetBuffer(string_t *self){
     return self->buffer;
 }
 
-uint16_t STRING_GetLength(const string *self){
+uint16_t STRING_GetLength(const string_t *self){
     return self->length;
 }
 
-void STRING_AddChar(string *self, char character){
+void STRING_AddChar(string_t *self, char character){
     self->buffer[self->length++] = character;
 }
 
-void STRING_AddInt(string *self, int32_t number){
+void STRING_AddInt(string_t *self, int32_t number){
     if(number < 0){
         self->buffer[self->length++] = '-';
         number*=-1;
@@ -39,7 +39,7 @@ void STRING_AddInt(string *self, int32_t number){
     }
 }
 
-void STRING_AddFloat(string *self, float number, uint32_t decimalSpaces, char separator){
+void STRING_AddFloat(string_t *self, float number, uint32_t decimalSpaces, char separator){
     if(number < 0){
         self->buffer[self->length++] = '-';
         number*=-1;
@@ -51,24 +51,24 @@ void STRING_AddFloat(string *self, float number, uint32_t decimalSpaces, char se
     STRING_AddInt(self, decimals%denominator);
 }
 
-void STRING_AddCharString(string *self, const char* const inputCharString){
+void STRING_AddCharString(string_t *self, const char* const inputCharString){
     for(uint32_t i = 0; inputCharString[i] != '\0'; i++){
         STRING_AddChar(self, inputCharString[i]);
     }
 }
 
-void STRING_AddString(string *self, const string *inputString){
+void STRING_AddString(string_t *self, const string_t *inputString){
     for(uint32_t i = 0; inputString->buffer[i] != '\0'; i++){
         STRING_AddChar(self, inputString->buffer[i]);
     }
 }
 
-void STRING_CopyString(const string *copyFrom, string *copyTo){
+void STRING_CopyString(const string_t *copyFrom, string_t *copyTo){
     STRING_Clear(copyTo);
     STRING_AddString(copyTo, copyFrom);
 }
 
-void STRING_Clear(string *self){
+void STRING_Clear(string_t *self){
     STRING_Init(self);
 }
 
@@ -80,18 +80,18 @@ uint8_t STRING_IsPrintable(char inputChar){
     return inputChar >= ' ' && inputChar <= '~';
 }
 
-void STRING_CharStringToString(const char* const inputCharString, string *outputString){
+void STRING_CharStringToString(const char* const inputCharString, string_t *outputString){
     STRING_Clear(outputString);
     STRING_AddCharString(outputString, inputCharString);
 }
 
-void STRING_StringToCharString(const string *inputString, char *outputCharString){
+void STRING_StringToCharString(const string_t *inputString, char *outputCharString){
     for(uint32_t i = 0; i < inputString->length; i++){
         outputCharString[i] = inputString->buffer[i];
     }
 }
 
-int32_t STRING_StringToInt(const string *inputString){
+int32_t STRING_StringToInt(const string_t *inputString){
     uint32_t i = 0;
     int32_t result = 0;
     int8_t signal = 1;
@@ -112,7 +112,7 @@ int32_t STRING_StringToInt(const string *inputString){
     return result*signal;
 }
 
-float STRING_StringToFloat(const string *inputString, char separator){
+float STRING_StringToFloat(const string_t *inputString, char separator){
     uint32_t i = 0;
     uint8_t separatorReached = 0;
     float decimalSpaces = 1.0;
@@ -147,7 +147,7 @@ float STRING_StringToFloat(const string *inputString, char separator){
     return result*signal;
 }
 
-uint8_t STRING_CompareStrings(const string *string1, const string *string2, uint16_t length){
+uint8_t STRING_CompareStrings(const string_t *string1, const string_t *string2, uint16_t length){
     if(length > string1->length){
         length = string1->length;
     }
@@ -162,7 +162,7 @@ uint8_t STRING_CompareStrings(const string *string1, const string *string2, uint
     return 1;
 }
 
-uint8_t STRING_CompareStringsRev(const string *string1, const string *string2, uint16_t length){
+uint8_t STRING_CompareStringsRev(const string_t *string1, const string_t *string2, uint16_t length){
     if(length > string1->length){
         length = string1->length;
     }
@@ -177,7 +177,7 @@ uint8_t STRING_CompareStringsRev(const string *string1, const string *string2, u
     return 1;
 }
 
-uint8_t STRING_GetChar(const string *inputString, uint16_t index){
+uint8_t STRING_GetChar(const string_t *inputString, uint16_t index){
     if(index >= inputString->length){
         return 0;
     }

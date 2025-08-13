@@ -23,11 +23,11 @@ typedef enum{
 
 void NEXTION_Begin(UART_HandleTypeDef *displayUartAddress);
 void NEXTION_SendCharMessage(const char* const message);
-void NEXTION_SendStringMessage(string *message);
-void NEXTION_SetComponentText(const string *component, const string *newText);
-void NEXTION_SetComponentIntValue(const string *component, int32_t newValue);
-void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t integerSpaces, uint32_t decimalSpaces);
-void NEXTION_SetGlobalVariableValue(const string *variable, int32_t value);
-displayResponses_t NEXTION_TreatMessage(string *message);
+void NEXTION_SendStringMessage(string_t *message);
+void NEXTION_SetComponentText(const string_t *component, const string_t *newText);
+void NEXTION_SetComponentIntValue(const string_t *component, int32_t newValue);
+void NEXTION_SetComponentFloatValue(const string_t *component, float newValue, uint32_t integerSpaces, uint32_t decimalSpaces);
+void NEXTION_SetGlobalVariableValue(const string_t *variable, int32_t value);
+displayResponses_t NEXTION_TreatMessage(string_t *message);
 
 #endif /* NEXTION_NEXTION_H_ */

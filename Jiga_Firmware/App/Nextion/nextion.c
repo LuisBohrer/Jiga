@@ -11,11 +11,11 @@
 #include <math.h>
 #include "usart.h"
 
-const string textSufix = {".txt", 4};
-const string valueSufix = {".val", 4};
-const string numberOfIntSufix = {".vvs0", 5};
-const string numberOfDecSufix = {".vvs1", 5};
-const string nextionEndPacket = {{0xff, 0xff, 0xff}, 3};
+const string_t textSufix = {".txt", 4};
+const string_t valueSufix = {".val", 4};
+const string_t numberOfIntSufix = {".vvs0", 5};
+const string_t numberOfDecSufix = {".vvs1", 5};
+const string_t nextionEndPacket = {{0xff, 0xff, 0xff}, 3};
 UART_HandleTypeDef* displayUart;
 
 void NEXTION_Begin(UART_HandleTypeDef *displayUartAddress){
@@ -23,12 +23,12 @@ void NEXTION_Begin(UART_HandleTypeDef *displayUartAddress){
 }
 
 void NEXTION_SendCharMessage(const char* const message){
-    string messageString;
+    string_t messageString;
     STRING_CharStringToString(message, &messageString);
     NEXTION_SendStringMessage(&messageString);
 }
 
-void NEXTION_SendStringMessage(string *message){
+void NEXTION_SendStringMessage(string_t *message){
     STRING_AddString(message, &nextionEndPacket);
     HAL_UART_Transmit(displayUart,
             STRING_GetBuffer(message),
@@ -36,8 +36,8 @@ void NEXTION_SendStringMessage(string *message){
             DISPLAY_UART_DEFAULT_TIMEOUT);
 }
 
-void NEXTION_SetComponentText(const string *component, const string *newText){
-    string nextionMessage;
+void NEXTION_SetComponentText(const string_t *component, const string_t *newText){
+    string_t nextionMessage;
     STRING_CopyString(component, &nextionMessage);
     STRING_AddString(&nextionMessage, &textSufix);
     STRING_AddCharString(&nextionMessage, "=\"");
@@ -46,8 +46,8 @@ void NEXTION_SetComponentText(const string *component, const string *newText){
     NEXTION_SendStringMessage(&nextionMessage);
 }
 
-void NEXTION_SetComponentIntValue(const string *component, int32_t newValue){
-    string nextionMessage;
+void NEXTION_SetComponentIntValue(const string_t *component, int32_t newValue){
+    string_t nextionMessage;
     STRING_CopyString(component, &nextionMessage);
     STRING_AddString(&nextionMessage, &valueSufix);
     STRING_AddChar(&nextionMessage, '=');
@@ -55,8 +55,8 @@ void NEXTION_SetComponentIntValue(const string *component, int32_t newValue){
     NEXTION_SendStringMessage(&nextionMessage);
 }
 
-void NEXTION_SetComponentFloatValue(const string *component, float newValue, uint32_t integerSpaces, uint32_t decimalSpaces){
-    string nextionMessage;
+void NEXTION_SetComponentFloatValue(const string_t *component, float newValue, uint32_t integerSpaces, uint32_t decimalSpaces){
+    string_t nextionMessage;
     STRING_CopyString(component, &nextionMessage);
     STRING_AddString(&nextionMessage, &numberOfIntSufix);
     STRING_AddChar(&nextionMessage, '=');
@@ -76,8 +76,8 @@ void NEXTION_SetComponentFloatValue(const string *component, float newValue, uin
     NEXTION_SendStringMessage(&nextionMessage);
 }
 
-void NEXTION_SetGlobalVariableValue(const string *variable, int32_t value){
-    string nextionMessage;
+void NEXTION_SetGlobalVariableValue(const string_t *variable, int32_t value){
+    string_t nextionMessage;
     STRING_CopyString(variable, &nextionMessage);
     STRING_AddChar(&nextionMessage, '=');
     STRING_AddInt(&nextionMessage, value);
@@ -85,7 +85,7 @@ void NEXTION_SetGlobalVariableValue(const string *variable, int32_t value){
 }
 
 
-displayResponses_t NEXTION_TreatMessage(string *message){
+displayResponses_t NEXTION_TreatMessage(string_t *message){
     if(message->length <= 0){
         return NO_MESSAGE;
     }
