@@ -124,10 +124,10 @@ string_t modbusLastMessage;
 modbusHandler_t modbusHandler;
 uint8_t DEVICE_ADDRESS = 255; // 0 representa o mestre
 
-uint8_t modbusMaster = 0; // flag para identificar o mestre
-uint8_t modbusWaitingForResponse = 0;
+bool modbusMaster = false; // flag para identificar o mestre
+bool modbusWaitingForResponse = false;
 
-uint8_t modbusEnabled;
+bool modbusEnabled = false;
 // Modbus declarations //
 
 // Timer counters and periods // [Section]
@@ -191,7 +191,7 @@ static void APP_ResetAdcCalibration(uint8_t channel, calibration_t typeOfCalibra
 // Static function declarations //
 
 // Application functions // [Section]
-uint8_t appStarted = 0;
+bool appStarted = false;
 void APP_init(){
     APP_InitUarts();
     APP_InitTimers();
@@ -219,7 +219,7 @@ void APP_init(){
 
     LEDS_SetLedState(1, GPIO_PIN_SET);
     LEDS_SetLedState(2, GPIO_PIN_RESET);
-    appStarted = 1;
+    appStarted = true;
 }
 
 void APP_poll(){
@@ -285,11 +285,11 @@ static void APP_UpdateAddress(){
 
     DEVICE_ADDRESS = address;
     if(address == 0){
-        modbusMaster = 1;
+        modbusMaster = true;
     }
     else{
         DEVICE_ADDRESS += SLAVE_INITIAL_ADDRESS;
-        modbusMaster = 0;
+        modbusMaster = false;
     }
     MODBUS_Begin(&modbusHandler, E_RS485_GPIO_Port, E_RS485_Pin, MODBUS_UART, DEVICE_ADDRESS);
 }
@@ -428,7 +428,7 @@ static void APP_RequestReads(void){
     }
     MODBUS_ReadInputRegisters(&modbusHandler, SLAVE_INITIAL_ADDRESS + slaveNumber + 1, REGISTER_VOLTAGE_1, NUMBER_OF_CHANNELS*2);
 
-    modbusWaitingForResponse = 1;
+    modbusWaitingForResponse = true;
     requestReadsCounter_ms = 0;
     modbusTimeBetweenByteCounter_ms = 0;
 }
@@ -447,7 +447,7 @@ static void APP_UpdateDisplay(void){
             if(value < 0){
                 value = 0;
             }
-            uint16_t integerSpaces =  UTILS_GetIntegerSpacesFromFloat(value);
+            uint16_t integerSpaces = UTILS_GetIntegerSpacesFromFloat(value);
             uint16_t decimalSpaces = NUMBER_OF_DIGITS_IN_BOX - integerSpaces;
             if(decimalSpaces > 2){
                 decimalSpaces = 2;
@@ -708,7 +708,7 @@ static void APP_TreatModbusMessage(){
     }
     if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD_MS){
         STRING_Clear(&modbusLastMessage);
-        modbusWaitingForResponse = 0;
+        modbusWaitingForResponse = false;
         LEDS_SetLedState(2, GPIO_PIN_RESET);
         APP_ResetUart(MODBUS_UART);
         modbusTimeBetweenByteCounter_ms = 0;
@@ -725,7 +725,7 @@ static void APP_TreatModbusMessage(){
     RB_ClearBuffer(&modbusRb);
     if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
             != MODBUS_NO_ERROR){
-        modbusWaitingForResponse = 0;
+        modbusWaitingForResponse = false;
         modbusTimeBetweenByteCounter_ms = 0;
         STRING_Clear(&modbusLastMessage);
         LEDS_SetLedState(2, GPIO_PIN_RESET);
@@ -741,7 +741,7 @@ static void APP_TreatModbusMessage(){
             APP_TreatMasterRequest(&modbusLastMessage);
         }
     }
-    modbusWaitingForResponse = 0;
+    modbusWaitingForResponse = false;
     modbusTimeBetweenByteCounter_ms = 0;
     STRING_Clear(&modbusLastMessage);
     LEDS_SetLedState(2, GPIO_PIN_RESET);
@@ -943,7 +943,7 @@ static void APP_EnableModbus(){
 
     RB_ClearBuffer(&modbusRb);
 
-    modbusEnabled = 1;
+    modbusEnabled = true;
 }
 
 void APP_DisableModbus(){
@@ -956,7 +956,7 @@ void APP_DisableModbus(){
     HAL_GPIO_WritePin(LIGA_RS485_GPIO_Port, LIGA_RS485_Pin, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(LIGA_RS485__GPIO_Port, LIGA_RS485__Pin, GPIO_PIN_SET);
 
-    modbusEnabled = 0;
+    modbusEnabled = false;
 }
 
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours){
