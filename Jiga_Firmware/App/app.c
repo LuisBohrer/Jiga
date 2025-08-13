@@ -178,7 +178,6 @@ static void APP_TreatMasterRequest(string_t *request);
 static void APP_TreatSlaveResponse(string_t *request);
 static void APP_EnableModbus(void);
 void APP_DisableModbus(void);
-static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
 static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart);
 static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
 static void APP_ResetUart(UART_HandleTypeDef *huart);
@@ -214,17 +213,19 @@ void APP_init(){
     EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t));
     APP_StartAdcReadDma(READ_VOLTAGE);
 
-    APP_SetRtcTime(&hrtc, 55, 38, 14);
-    APP_SetRtcDate(&hrtc, 07, 02, 25);
-
     LEDS_SetLedState(1, GPIO_PIN_SET);
     LEDS_SetLedState(2, GPIO_PIN_RESET);
+
+    APP_SetRtcDate(&hrtc, 0, 0, 0);
+    APP_SetRtcTime(&hrtc, 0, 0, 0);
+
     appStarted = true;
 }
 
 void APP_poll(){
-    if(!appStarted)
+    if(!appStarted){
         return;
+    }
 
     APP_UpdateReads();
 
@@ -296,7 +297,7 @@ static void APP_UpdateAddress(){
 
 static void APP_InitModbus(void){
     APP_UpdateAddress();
-    // Organizandoo array de acordo com a lista de registradores em registers.h
+    // Organizando array de acordo com a lista de registradores em registers.h
     for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
         inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
         inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
@@ -479,7 +480,6 @@ static void APP_UpdateDisplay(void){
             HAL_Delay(1);
         }
     }
-
     updateDisplayCounter_ms = 0;
 }
 // Adc reading functions //
@@ -868,6 +868,8 @@ static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer
         case BAUD_RATE_115200:
             huart->Init.BaudRate = 115200;
             break;
+        default:
+            return;
     }
 
     switch(stopBits){
@@ -883,6 +885,8 @@ static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer
         case STOP_BITS_2:
             huart->Init.StopBits = UART_STOPBITS_2;
             break;
+        default:
+            return;
     }
 
     switch(parity){
@@ -898,6 +902,8 @@ static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer
             huart->Init.Parity = UART_PARITY_ODD;
             huart->Init.WordLength = UART_WORDLENGTH_9B; // O wordlength considera o bit de paridade
             break;
+        default:
+            return;
     }
 
     if(HAL_UART_Init(huart) != HAL_OK){
