@@ -162,8 +162,8 @@ typedef enum{
 // Static function declarations // [Section]
 static void APP_InitUarts(void);
 static void APP_InitTimers(void);
-static void APP_EnableSupplies(uint8_t supplyFlags);
-void APP_DisableSupplies(uint8_t supplyFlags);
+static void APP_EnableSupplies(supplyEnable_t supplyFlags);
+void APP_DisableSupplies(supplyEnable_t supplyFlags);
 static void APP_StartAdcReadDma(reading_t typeOfRead);
 static void APP_UpdateAddress(void);
 static void APP_InitModbus(void);
@@ -174,12 +174,13 @@ static void APP_TreatDisplayMessage(void);
 static void APP_SendLog(void);
 static void APP_TreatDebugMessage(void);
 static void APP_TreatModbusMessage(void);
+static inline void APP_ResetModbusResponse(void);
 static void APP_TreatMasterRequest(string_t *request);
 static void APP_TreatSlaveResponse(string_t *request);
 static void APP_EnableModbus(void);
 void APP_DisableModbus(void);
 static void APP_DisableUartInterrupt(UART_HandleTypeDef *huart);
-static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
+static bool APP_EnableUartInterrupt(UART_HandleTypeDef *huart);
 static void APP_ResetUart(UART_HandleTypeDef *huart);
 static void APP_UpdateUartConfigs(UART_HandleTypeDef *huart, uint8_t *uartBuffer, uartBaudRate_t baudRate, uartStopBits_t stopBits, uartParity_t parity);
 static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t minutes, uint8_t hours);
@@ -304,7 +305,7 @@ static void APP_InitModbus(void){
     }
 }
 
-static void APP_EnableSupplies(uint8_t supplyFlags){
+static void APP_EnableSupplies(supplyEnable_t supplyFlags){
     if(supplyFlags > SUPPLY_ALL){
         return;
     }
@@ -319,7 +320,7 @@ static void APP_EnableSupplies(uint8_t supplyFlags){
     }
 }
 
-void APP_DisableSupplies(uint8_t supplyFlags){
+void APP_DisableSupplies(supplyEnable_t supplyFlags){
     if(supplyFlags > SUPPLY_ALL){
         return;
     }
@@ -587,9 +588,9 @@ static void APP_TreatDebugMessage(){
             COMM_SendAck(SET_MODBUS_CONFIG);
             APP_UpdateUartConfigs(MODBUS_UART,
                     &modbusLastChar,
-                    STRING_GetChar(&debugLastMessage, 3),
-                    STRING_GetChar(&debugLastMessage, 4),
-                    STRING_GetChar(&debugLastMessage, 5));
+                    STRING_GetChar(&debugLastMessage, 3), // baudrate
+                    STRING_GetChar(&debugLastMessage, 4), // stopbits
+                    STRING_GetChar(&debugLastMessage, 5)); // parity
 
             length = 0;
             COMM_SendChar(&length, 1);
@@ -707,11 +708,8 @@ static void APP_TreatModbusMessage(){
         return;
     }
     if(modbusTimeBetweenByteCounter_ms >= MODBUS_MAX_TIME_BETWEEN_BYTES_MS + modbusMaster*MASTER_BUFFER_PERIOD_MS){
-        STRING_Clear(&modbusLastMessage);
-        modbusWaitingForResponse = false;
-        LEDS_SetLedState(2, GPIO_PIN_RESET);
+        APP_ResetModbusResponse();
         APP_ResetUart(MODBUS_UART);
-        modbusTimeBetweenByteCounter_ms = 0;
         return;
     }
     if(RB_IsEmpty(&modbusRb)){
@@ -725,10 +723,7 @@ static void APP_TreatModbusMessage(){
     RB_ClearBuffer(&modbusRb);
     if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
             != MODBUS_NO_ERROR){
-        modbusWaitingForResponse = false;
-        modbusTimeBetweenByteCounter_ms = 0;
-        STRING_Clear(&modbusLastMessage);
-        LEDS_SetLedState(2, GPIO_PIN_RESET);
+        APP_ResetModbusResponse();
         APP_ResetUart(MODBUS_UART);
         return;
     }
@@ -741,10 +736,14 @@ static void APP_TreatModbusMessage(){
             APP_TreatMasterRequest(&modbusLastMessage);
         }
     }
-    modbusWaitingForResponse = false;
-    modbusTimeBetweenByteCounter_ms = 0;
+    APP_ResetModbusResponse();
+}
+
+static inline void APP_ResetModbusResponse(){
     STRING_Clear(&modbusLastMessage);
+    modbusWaitingForResponse = false;
     LEDS_SetLedState(2, GPIO_PIN_RESET);
+    modbusTimeBetweenByteCounter_ms = 0;
 }
 
 static void APP_TreatMasterRequest(string_t *request){
@@ -831,7 +830,7 @@ static void APP_TreatSlaveResponse(string_t *response){
 // Message treatment functions //
 
 // Uart handling functions // [Section]
-static uint8_t APP_EnableUartInterrupt(UART_HandleTypeDef *huart){
+static bool APP_EnableUartInterrupt(UART_HandleTypeDef *huart){
     HAL_StatusTypeDef status;
     if(huart == DISPLAY_UART){
         status = HAL_UART_Receive_IT(huart, &displayLastChar, 1);
@@ -945,7 +944,7 @@ static void APP_EnableModbus(){
     HAL_GPIO_WritePin(LIGA_RS485_GPIO_Port, LIGA_RS485_Pin, GPIO_PIN_SET);
     HAL_GPIO_WritePin(LIGA_RS485__GPIO_Port, LIGA_RS485__Pin, GPIO_PIN_RESET);
 
-    while(APP_EnableUartInterrupt(MODBUS_UART) == 0);
+    while(APP_EnableUartInterrupt(MODBUS_UART) == false);
 
     RB_ClearBuffer(&modbusRb);
 

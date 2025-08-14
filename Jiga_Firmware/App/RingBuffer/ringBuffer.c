@@ -14,8 +14,9 @@ void RB_Init(ringBuffer_t *ringBuffer){
 }
 
 void RB_PutByte(ringBuffer_t *ringBuffer, uint8_t byte){
-    if(RB_IsFull(ringBuffer))
+    if(RB_IsFull(ringBuffer)){
         return;
+    }
 
     ringBuffer->buffer[ringBuffer->last++] = byte;
     ringBuffer->numberOfBytes++;
@@ -25,8 +26,9 @@ void RB_PutByte(ringBuffer_t *ringBuffer, uint8_t byte){
 }
 
 uint8_t RB_GetByte(ringBuffer_t *ringBuffer){
-    if(RB_IsEmpty(ringBuffer))
+    if(RB_IsEmpty(ringBuffer)){
         return 0;
+    }
 
     uint8_t byte;
     byte = ringBuffer->buffer[ringBuffer->first++];

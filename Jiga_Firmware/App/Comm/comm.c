@@ -67,6 +67,5 @@ debugRequest_t COMM_TreatResponse(string_t *message){
     if(STRING_GetChar(message, 2) == INCOMPLETE_REQUEST){
         return INVALID_REQUEST;
     }
-
     return (debugRequest_t) STRING_GetChar(message, 2);
 }
