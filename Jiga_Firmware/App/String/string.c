@@ -33,8 +33,8 @@ void STRING_AddInt(string_t *self, int32_t number){
         number*=-1;
     }
 
-    for(int8_t i = (int8_t)log10f(number); i >= 0; i--){
-        int32_t resto = number/pow(10, i);
+    for(uint32_t i = pow(10, (int8_t)log10f(number)); i >= 1; i/=10){
+        int32_t resto = number/i;
         self->buffer[self->length++] = resto%10 + '0';
     }
 }
