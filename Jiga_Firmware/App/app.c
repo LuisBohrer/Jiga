@@ -246,33 +246,23 @@ void APP_poll(){
 
 // Init functions // [Section]
 static void APP_InitUarts(){
-    HAL_StatusTypeDef status;
-    do{
-        status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
-    } while(status != HAL_OK);
+    while(HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1) != HAL_OK);
     RB_Init(&displayRb);
     STRING_Init(&displayLastMessage);
 
-    do{
-        status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
-    } while(status != HAL_OK);
+    while(HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1) != HAL_OK);
     RB_Init(&debugRb);
     STRING_Init(&debugLastMessage);
 
-    do{
-        status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
-    } while(status != HAL_OK);
+    while(HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1) != HAL_OK);
     RB_Init(&modbusRb);
     STRING_Init(&modbusLastMessage);
 }
 
 static void APP_InitTimers(){
-    HAL_StatusTypeDef status;
-    do{
-        status = HAL_TIM_Base_Start_IT(&htim6);
-    } while(status != HAL_OK);
+    while(HAL_TIM_Base_Start_IT(&htim6) != HAL_OK); // 1 ms
 
-    HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 2000, RTC_WAKEUPCLOCK_RTCCLK_DIV16); // 1 seg
+    while(HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 2000, RTC_WAKEUPCLOCK_RTCCLK_DIV16) != HAL_OK); // 1 seg
 }
 
 static void APP_UpdateAddress(){
@@ -336,13 +326,10 @@ void APP_DisableSupplies(supplyEnable_t supplyFlags){
 }
 
 static void APP_StartAdcReadDma(reading_t typeOfRead){
-    HAL_StatusTypeDef status;
     HAL_GPIO_WritePin(SELECT_GPIO_Port, SELECT_Pin, typeOfRead == READ_VOLTAGE);
     HAL_Delay(5); // importante pra ter leituras certas
     uint16_t *readsBuffer = typeOfRead == READ_VOLTAGE ? adcVoltageReads : adcCurrentReads;
-    do{
-        status = HAL_ADC_Start_DMA(&hadc1, (uint32_t*) readsBuffer, NUMBER_OF_CHANNELS);
-    } while(status != HAL_OK);
+    while(HAL_ADC_Start_DMA(&hadc1, (uint32_t*) readsBuffer, NUMBER_OF_CHANNELS) != HAL_OK);
     HAL_Delay(5); // importante pra ter leituras certas
     reading = typeOfRead;
 }
@@ -970,10 +957,7 @@ static void APP_SetRtcTime(RTC_HandleTypeDef *hrtc, uint8_t seconds, uint8_t min
     newTime.Minutes = minutes;
     newTime.Hours = hours;
 
-    HAL_StatusTypeDef status;
-    do{
-        status = HAL_RTC_SetTime(hrtc, &newTime, RTC_FORMAT_BIN);
-    } while(status != HAL_OK);
+    while(HAL_RTC_SetTime(hrtc, &newTime, RTC_FORMAT_BIN) != HAL_OK);
 }
 
 static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, uint8_t year){
@@ -982,10 +966,7 @@ static void APP_SetRtcDate(RTC_HandleTypeDef *hrtc, uint8_t day, uint8_t month, 
     newDate.Month = month;
     newDate.Year = year;
 
-    HAL_StatusTypeDef status;
-    do{
-        status = HAL_RTC_SetDate(hrtc, &newDate, RTC_FORMAT_BIN);
-    } while(status != HAL_OK);
+    while(HAL_RTC_SetDate(hrtc, &newDate, RTC_FORMAT_BIN) != HAL_OK);
 }
 
 static void APP_AddRtcTimestampToString(string_t *String, RTC_HandleTypeDef *baseTime){
@@ -1046,24 +1027,19 @@ static void APP_CalibrateAdcChannel(uint8_t channel, calibration_t typeOfCalibra
 
     uint32_t address = 0;
     uint32_t length = 0;
-    HAL_StatusTypeDef status;
     if(channel >= NUMBER_OF_CHANNELS){
         for(channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
             adcCalibrationBuffer[channel] = UTILS_MovingAverageGetValue(&movingAverage[channel]);
             address = initialAddress + 2 * channel;
             length = 2;
-            do{
-                status = EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length);
-            } while(status != HAL_OK);
+            while(EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length) != HAL_OK);
         }
     }
     else{
         adcCalibrationBuffer[channel] = UTILS_MovingAverageGetValue(&movingAverage[channel]);
         address = initialAddress + 2 * channel;
         length = 2;
-        do{
-            status = EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length);
-        } while(status != HAL_OK);
+        while(EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length) != HAL_OK);
     }
 }
 
@@ -1103,24 +1079,19 @@ static void APP_ResetAdcCalibration(uint8_t channel, calibration_t typeOfCalibra
 
     uint32_t address = 0;
     uint32_t length = 0;
-    HAL_StatusTypeDef status;
     if(channel >= NUMBER_OF_CHANNELS){
         for(channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
             adcCalibrationBuffer[channel] = value;
             address = initialAddress + 2 * channel;
             length = 2;
-            do{
-                status = EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length);
-            } while(status != HAL_OK);
+            while(EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length) != HAL_OK);
         }
     }
     else{
         adcCalibrationBuffer[channel] = value;
         address = initialAddress + 2 * channel;
         length = 2;
-        do{
-            status = EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length);
-        } while(status != HAL_OK);
+        while(EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length) != HAL_OK);
     }
 }
 // Specific utility functions //
@@ -1131,15 +1102,11 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc){
 }
 
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
-    HAL_StatusTypeDef status;
-
     if(huart == DISPLAY_UART){
         if(appStarted){
             RB_PutByte(&displayRb, displayLastChar);
         }
-        do{
-            status = HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1);
-        } while(status != HAL_OK);
+        while(HAL_UART_Receive_IT(DISPLAY_UART, &displayLastChar, 1) != HAL_OK);
     }
 
     else if(huart == DEBUG_UART){
@@ -1147,9 +1114,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
         if(appStarted){
             RB_PutByte(&debugRb, debugLastChar);
         }
-        do{
-            status = HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1);
-        } while(status != HAL_OK);
+        while(HAL_UART_Receive_IT(DEBUG_UART, &debugLastChar, 1) != HAL_OK);
     }
 
     else if(huart == MODBUS_UART){
@@ -1157,9 +1122,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart){
         if(appStarted){
             RB_PutByte(&modbusRb, modbusLastChar);
         }
-        do{
-            status = HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1);
-        } while(status != HAL_OK);
+        while(HAL_UART_Receive_IT(MODBUS_UART, &modbusLastChar, 1) != HAL_OK);
     }
 }
 
