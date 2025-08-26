@@ -239,8 +239,6 @@ void APP_poll(){
     if(modbusMaster){
         APP_RequestReads();
     }
-
-    //UTILS_CpuSleep(); // nao liga o display
 }
 // Application functions //
 
@@ -261,7 +259,6 @@ static void APP_InitUarts(){
 
 static void APP_InitTimers(){
     while(HAL_TIM_Base_Start_IT(&htim6) != HAL_OK); // 1 ms
-
     while(HAL_RTCEx_SetWakeUpTimer_IT(&hrtc, 2000, RTC_WAKEUPCLOCK_RTCCLK_DIV16) != HAL_OK); // 1 seg
 }
 
@@ -708,8 +705,7 @@ static void APP_TreatModbusMessage(){
         STRING_AddChar(&modbusLastMessage, RB_GetByte(&modbusRb));
     }
     RB_ClearBuffer(&modbusRb);
-    if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage))
-            != MODBUS_NO_ERROR){
+    if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage)) != MODBUS_NO_ERROR){
         APP_ResetModbusResponse();
         APP_ResetUart(MODBUS_UART);
         return;
@@ -788,24 +784,28 @@ static void APP_TreatSlaveResponse(string_t *response){
         return;
     }
 
+    uint8_t placa = modbusHandler.requestId - SLAVE_INITIAL_ADDRESS;
+    if(placa >= MODBUS_NUMBER_OF_DEVICES){
+        STRING_Clear(&modbusLastMessage);
+        return;
+    }
+    uint8_t *dataBuffer = (STRING_GetBuffer(response) + 3); // address - opcode - length - [data]
     switch(modbusHandler.opcode){
         case READ_INPUT_REGISTERS:
             for(uint8_t i = 0; i < modbusHandler.qttRegisters; i++){
-                uint16_t incomingShort = STRING_GetChar(response, 3 + 2*i) << 8;
-                incomingShort |= STRING_GetChar(response, 3 + 2*i + 1);
+                uint16_t incomingShort = dataBuffer[2*i] << 8;
+                incomingShort |= dataBuffer[2*i + 1];
                 uint16_t channel = modbusHandler.firstRegister + i/2;
 
-                if(modbusHandler.firstRegister + i%2 == 0){
-                    convertedVoltageReads_V[modbusHandler.requestId - SLAVE_INITIAL_ADDRESS][channel] =
-                            UTILS_Map(incomingShort,
-                                    MIN_ADC_READ, MAX_ADC_READ,
-                                    MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
+                if((modbusHandler.firstRegister + i)%2 == 0){ // registrador par -> tensao
+                    convertedVoltageReads_V[placa][channel] = UTILS_Map(incomingShort,
+                                                                        MIN_ADC_READ, MAX_ADC_READ,
+                                                                        MIN_VOLTAGE_READ, MAX_VOLTAGE_READ);
                 }
-                else{
-                    convertedCurrentReads_mA[modbusHandler.requestId - SLAVE_INITIAL_ADDRESS][channel] =
-                            UTILS_Map(incomingShort,
-                                    MIN_ADC_READ, MAX_ADC_READ,
-                                    MIN_CURRENT_READ, MAX_CURRENT_READ);
+                else{ // registrador impar -> corrente
+                    convertedCurrentReads_mA[placa][channel] = UTILS_Map(incomingShort,
+                                                                        MIN_ADC_READ, MAX_ADC_READ,
+                                                                        MIN_CURRENT_READ, MAX_CURRENT_READ);
                 }
             }
             break;
