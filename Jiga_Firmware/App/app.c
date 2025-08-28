@@ -35,12 +35,13 @@ uint16_t adcCurrentCalibrationMax[NUMBER_OF_CHANNELS] = {4176, 4087, 4155, 4028,
 
 const uint16_t MIN_ADC_READ = 0;
 const uint16_t MAX_ADC_READ = 4095;
+const uint16_t MAX_ADC_READ_CURRENT = 2188;
 
 const float MIN_VOLTAGE_READ = 0;
 const float MAX_VOLTAGE_READ = 13.3; // V
 const float MIN_CURRENT_READ = 0;
-//const float MAX_CURRENT_READ = 3025; // mA
-const float MAX_CURRENT_READ = 2944; // mA
+const float MAX_CURRENT_READ = 1500; // mA
+//const float MAX_CURRENT_READ = 2944; // mA
 
 typedef enum{
     READ_VOLTAGE = 0,
@@ -379,7 +380,7 @@ static void APP_UpdateReads(){
                 // Converte e salva no registrador domodbus
                 convertedCurrentReads_int[channel] = UTILS_Map(currentValue,
                         adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
-                        MIN_ADC_READ, MAX_ADC_READ);
+                        MIN_ADC_READ, MAX_ADC_READ_CURRENT);
                 // Converte para enviar pro display
                 convertedCurrentReads_mA[0][channel] = UTILS_Map(currentValue,
                         adcCurrentCalibrationMin[channel], adcCurrentCalibrationMax[channel],
@@ -804,7 +805,7 @@ static void APP_TreatSlaveResponse(string_t *response){
                 }
                 else{ // registrador impar -> corrente
                     convertedCurrentReads_mA[placa][channel] = UTILS_Map(incomingShort,
-                                                                        MIN_ADC_READ, MAX_ADC_READ,
+                                                                        MIN_ADC_READ, MAX_ADC_READ_CURRENT,
                                                                         MIN_CURRENT_READ, MAX_CURRENT_READ);
                 }
             }

@@ -25,9 +25,11 @@ uint16_t STRING_GetLength(const string_t *self){
 
 void STRING_AddChar(string_t *self, char character){
     if(self->length >= BUFFER_SIZE){
-        return;
+        self->buffer[self->length-1] = character;
     }
-    self->buffer[self->length++] = character;
+    else{
+        self->buffer[self->length++] = character;
+    }
 }
 
 void STRING_AddInt(string_t *self, int32_t number){
@@ -61,7 +63,7 @@ void STRING_AddCharString(string_t *self, const char* const inputCharString){
 }
 
 void STRING_AddString(string_t *self, const string_t *inputString){
-    for(uint32_t i = 0; i < inputString->length; i++){
+    for(uint32_t i = 0; i < inputString->length && inputString->buffer[i] != '\0'; i++){
         STRING_AddChar(self, inputString->buffer[i]);
     }
 }
