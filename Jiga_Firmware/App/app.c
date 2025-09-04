@@ -1032,19 +1032,17 @@ static void APP_CalibrateAdcChannel(uint8_t channel, calibration_t typeOfCalibra
             return;
     }
 
-    uint32_t address = 0;
     uint32_t length = 0;
     if(channel >= NUMBER_OF_CHANNELS){
         for(channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
             adcCalibrationBuffer[channel] = UTILS_MovingAverageGetValue(&movingAverage[channel]);
-            address = initialAddress + 2 * channel;
-            length = 2;
-            while(EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length) != HAL_OK);
         }
+        length = 2*NUMBER_OF_CHANNELS;
+        while(EEPROM_Write(&hi2c1, (uint8_t*) adcCalibrationBuffer, initialAddress, length) != HAL_OK);
     }
     else{
         adcCalibrationBuffer[channel] = UTILS_MovingAverageGetValue(&movingAverage[channel]);
-        address = initialAddress + 2 * channel;
+        uint32_t address = initialAddress + 2*channel;
         length = 2;
         while(EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length) != HAL_OK);
     }
@@ -1084,19 +1082,17 @@ static void APP_ResetAdcCalibration(uint8_t channel, calibration_t typeOfCalibra
             return;
     }
 
-    uint32_t address = 0;
     uint32_t length = 0;
     if(channel >= NUMBER_OF_CHANNELS){
         for(channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
             adcCalibrationBuffer[channel] = value;
-            address = initialAddress + 2 * channel;
-            length = 2;
-            while(EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length) != HAL_OK);
         }
+        length = 2*NUMBER_OF_CHANNELS;
+        while(EEPROM_Write(&hi2c1, (uint8_t*) adcCalibrationBuffer, initialAddress, length) != HAL_OK);
     }
     else{
         adcCalibrationBuffer[channel] = value;
-        address = initialAddress + 2 * channel;
+        uint32_t address = initialAddress + 2*channel;
         length = 2;
         while(EEPROM_Write(&hi2c1, (uint8_t*) &adcCalibrationBuffer[channel], address, length) != HAL_OK);
     }

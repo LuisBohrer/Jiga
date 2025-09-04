@@ -84,7 +84,6 @@ void NEXTION_SetGlobalVariableValue(const string_t *variable, int32_t value){
     NEXTION_SendStringMessage(&nextionMessage);
 }
 
-
 displayResponses_t NEXTION_TreatMessage(string_t *message){
     if(message->length <= 0){
         return NO_MESSAGE;
