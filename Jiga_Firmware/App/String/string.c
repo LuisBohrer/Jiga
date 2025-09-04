@@ -37,7 +37,6 @@ void STRING_AddInt(string_t *self, int32_t number){
         STRING_AddChar(self, '-');
         number*=-1;
     }
-
     for(uint32_t i = pow(10, (int8_t)log10f(number)); i >= 1; i/=10){
         int32_t resto = number/i;
         STRING_AddChar(self, resto%10 + '0');

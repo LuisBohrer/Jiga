@@ -152,6 +152,12 @@ modbusError_t MODBUS_VerifyCrc(uint8_t *message, uint32_t length){
     if(length < 8){
         return MODBUS_INCOMPLETE_MESSAGE;
     }
+    if(((message[length - 1] << 8) | message[length - 2]) == 0){ // o crc nunca eh 0
+        if(length >= MODBUS_BUFFER_SIZE){
+            return MODBUS_INCORRECT_CRC;
+        }
+        return MODBUS_INCOMPLETE_MESSAGE;
+    }
     if(HAL_CRC_Calculate(&hcrc, (uint32_t*) message, length - 2) != ((message[length - 1] << 8) | message[length - 2] )){
         return MODBUS_INCORRECT_CRC;
     }

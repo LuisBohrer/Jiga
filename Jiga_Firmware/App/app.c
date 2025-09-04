@@ -140,7 +140,7 @@ const uint32_t UPDATE_READS_PERIOD_MS = 5;
 
 volatile uint32_t modbusTimeBetweenByteCounter_ms = 0;
 const uint16_t MODBUS_MAX_TIME_BETWEEN_BYTES_MS = 500; // tempo maximo ate reconhecer como fim da mensagem
-const uint16_t MASTER_BUFFER_PERIOD_MS = 100; // tempo a mais esperado pelo mestre para receber uma resposta
+const uint16_t MASTER_BUFFER_PERIOD_MS = 500; // tempo a mais esperado pelo mestre para receber uma resposta
 volatile uint32_t debugTimeBetweenByteCounter_ms = 0;
 const uint16_t DEBUG_MAX_TIME_BETWEEN_BYTES_MS = 500;
 
@@ -286,7 +286,7 @@ static void APP_UpdateAddress(){
 
 static void APP_InitModbus(void){
     APP_UpdateAddress();
-    // Organizando array de acordo com a lista de registradores em registers.h
+    // Organizando o array de acordo com a lista de registradores em registers.h
     for(uint8_t i = 0; i < NUMBER_OF_CHANNELS; i++){
         inputRegistersMap[i*2] = &convertedVoltageReads_int[i];
         inputRegistersMap[i*2 + 1] = &convertedCurrentReads_int[i];
@@ -706,7 +706,10 @@ static void APP_TreatModbusMessage(){
         STRING_AddChar(&modbusLastMessage, RB_GetByte(&modbusRb));
     }
     RB_ClearBuffer(&modbusRb);
-    if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage)) != MODBUS_NO_ERROR){
+    if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage)) == MODBUS_INCOMPLETE_MESSAGE){
+        return;
+    }
+    if(MODBUS_VerifyCrc(STRING_GetBuffer(&modbusLastMessage), STRING_GetLength(&modbusLastMessage)) == MODBUS_INCORRECT_CRC){
         APP_ResetModbusResponse();
         APP_ResetUart(MODBUS_UART);
         return;
@@ -791,12 +794,16 @@ static void APP_TreatSlaveResponse(string_t *response){
         return;
     }
     uint8_t *dataBuffer = (STRING_GetBuffer(response) + 3); // address - opcode - length - [data]
+    uint8_t dataLength = STRING_GetLength(response) - 5; // tirando address, opcode, length e crc (2 bytes)
     switch(modbusHandler.opcode){
         case READ_INPUT_REGISTERS:
-            for(uint8_t i = 0; i < modbusHandler.qttRegisters; i++){
+            for(uint8_t i = 0; i < modbusHandler.qttRegisters && (2*i + 1) < dataLength; i++){
                 uint16_t incomingShort = dataBuffer[2*i] << 8;
                 incomingShort |= dataBuffer[2*i + 1];
                 uint16_t channel = modbusHandler.firstRegister + i/2;
+                if(channel >= NUMBER_OF_CHANNELS){
+                    break;
+                }
 
                 if((modbusHandler.firstRegister + i)%2 == 0){ // registrador par -> tensao
                     convertedVoltageReads_V[placa][channel] = UTILS_Map(incomingShort,
@@ -916,7 +923,6 @@ static void APP_SendLog(){
     COMM_SendString(&logMessage);
 
     for(uint16_t i = 0; i < NUMBER_OF_CHANNELS; i++){
-        STRING_AddCharString(&logMessage, "\n\r");
         uint8_t line[100] = {'\0'};
         uint8_t length = sprintf((char*)line, "[LOG] Read %d: Voltage = %.2f V ; Current = %.2f mA\n\r", i, convertedVoltageReads_V[0][i], convertedCurrentReads_mA[0][i]);
         COMM_SendChar(line, length);
