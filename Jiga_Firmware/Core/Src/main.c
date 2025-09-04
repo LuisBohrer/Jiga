@@ -107,7 +107,9 @@ int main(void)
   MX_RTC_Init();
   MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
+  __disable_irq();
   APP_init();
+  __enable_irq();
   /* USER CODE END 2 */
 
   /* Infinite loop */
