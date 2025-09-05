@@ -57,3 +57,5 @@ const string_t currentTxtBx2[10] = {
         {"bx2_Corrente8", 14},
         {"bx2_Corrente9", 14}
 };
+
+const string_t firmVersionBx = {"firmVersionBx", 13};

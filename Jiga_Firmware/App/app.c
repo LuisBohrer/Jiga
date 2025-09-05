@@ -25,6 +25,8 @@
 #include "Eeprom/memoryMap.h"
 #include "i2c.h"
 
+const string_t FIRMWARE_VERSION = {"1.0.0", 5};
+
 // ADC constants and buffers // [Section]
 #define NUMBER_OF_CHANNELS 10
 
@@ -209,11 +211,11 @@ void APP_init(){
         UTILS_MovingAverageInit(&voltageMovingAverage[channel], MOVING_AVERAGE_BUFFER_SIZE);
         UTILS_MovingAverageInit(&currentMovingAverage[channel], MOVING_AVERAGE_BUFFER_SIZE);
     }
-    EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t));
-    EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t));
-    EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t));
-    EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t));
-    APP_StartAdcReadDma(READ_VOLTAGE);
+//    EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMin, VOLTAGE_CALIBRATION_MIN_0, sizeof(adcVoltageCalibrationMin)/sizeof(uint8_t));
+//    EEPROM_Read(&hi2c1, (uint8_t*)adcVoltageCalibrationMax, VOLTAGE_CALIBRATION_MAX_0, sizeof(adcVoltageCalibrationMax)/sizeof(uint8_t));
+//    EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMin, CURRENT_CALIBRATION_MIN_0, sizeof(adcCurrentCalibrationMin)/sizeof(uint8_t));
+//    EEPROM_Read(&hi2c1, (uint8_t*)adcCurrentCalibrationMax, CURRENT_CALIBRATION_MAX_0, sizeof(adcCurrentCalibrationMax)/sizeof(uint8_t));
+//    APP_StartAdcReadDma(READ_VOLTAGE);
 
     LEDS_SetLedState(1, GPIO_PIN_SET);
     LEDS_SetLedState(2, GPIO_PIN_RESET);
@@ -428,6 +430,7 @@ static void APP_UpdateDisplay(void){
         return;
     }
 
+    NEXTION_SetComponentText(&firmVersionBx, &FIRMWARE_VERSION);
     for(uint8_t placa = 0; placa < MODBUS_NUMBER_OF_DEVICES; placa++){
         for(uint8_t channel = 0; channel < NUMBER_OF_CHANNELS; channel++){
             float value = convertedVoltageReads_V[placa][channel];

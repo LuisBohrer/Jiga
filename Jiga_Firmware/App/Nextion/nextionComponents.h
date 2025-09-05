@@ -16,4 +16,6 @@ extern const string_t voltageTxtBx2[10];
 extern const string_t currentTxtBx1[10];
 extern const string_t currentTxtBx2[10];
 
+extern const string_t firmVersionBx;
+
 #endif /* NEXTION_NEXTIONCOMPONENTS_H_ */
