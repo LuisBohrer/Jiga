@@ -135,7 +135,7 @@ bool modbusEnabled = false;
 
 // Timer counters and periods // [Section]
 volatile uint32_t updateDisplayCounter_ms = 0;
-const uint32_t UPDATE_DISPLAY_PERIOD_MS = 50;
+const uint32_t UPDATE_DISPLAY_PERIOD_MS = 500;
 
 volatile uint32_t updateReadsCounter_ms = 0;
 const uint32_t UPDATE_READS_PERIOD_MS = 5;
